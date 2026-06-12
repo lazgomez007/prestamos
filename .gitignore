@@ -1,2 +1,14 @@
 # Configuración local de Claude Code
 .claude/
+
+# Entorno virtual de Python
+.venv/
+
+# Bytecode y cachés
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Base de datos local y archivos exportados
+*.db
+*.xlsx
