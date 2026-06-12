@@ -21,6 +21,9 @@ Write-Host "Ejecutando pruebas..."
 # Prestamo de 12000 al 12% anual a 12 meses.
 Assert-Equal 1066.19 (Get-CuotaMensual -Capital 12000 -TasaAnual 0.12 -Meses 12) "Cuota con interes (12000, 12%, 12 meses)"
 
+# Prestamo sin intereses: el capital se reparte en partes iguales.
+Assert-Equal 1000.00 (Get-CuotaMensual -Capital 12000 -TasaAnual 0 -Meses 12) "Cuota sin interes (12000, 0%, 12 meses)"
+
 if ($script:fallos -eq 0) {
     Write-Host "`nTodas las pruebas pasaron." -ForegroundColor Green
     exit 0

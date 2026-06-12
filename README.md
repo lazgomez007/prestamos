@@ -1,6 +1,6 @@
 # Préstamos 💰
 
-Una pequeña **calculdora** de préstamos escrita en PowerShell. Calcula la cuota
+Una pequeña **calculadora** de préstamos escrita en PowerShell. Calcula la cuota
 mensual de un préstamo usando el sistema de amortización francesa (cuota fija).
 
 ## Requisitos
