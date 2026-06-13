@@ -167,6 +167,8 @@ def _prestamo_detalle(p: Prestamo) -> dict:
         "resumen": _resumen(p.cuotas),
     }
     _enriquecer_carrillo(p, p.cuotas, d["cuotas"], d["resumen"])
+    if p.capital_final and p.capital_final > 0 and d["cuotas"]:
+        d["cuotas"][-1]["es_balon"] = True
     return d
 
 
@@ -263,6 +265,8 @@ def calcular(data: dict = Body(...)):
     dicts = [_cuota_dict(c) for c in cuotas]
     resumen = _resumen(cuotas)
     _enriquecer_carrillo(p, cuotas, dicts, resumen)
+    if p.capital_final and p.capital_final > 0 and dicts:
+        dicts[-1]["es_balon"] = True
     return {"cuota_fija": _m(cuota), "cuotas": dicts, "resumen": resumen}
 
 

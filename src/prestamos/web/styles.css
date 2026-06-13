@@ -239,7 +239,11 @@ table.crono tfoot tr.fila-total td {
   font-weight: 700;
   background: var(--bg-suave);
   border-top: 2px solid var(--acento);
-  position: sticky; bottom: 0;
+}
+table.crono tfoot tr.fila-balon td {
+  font-weight: 700;
+  background: var(--ambar-bg);
+  color: var(--texto);
 }
 .chk { width: 17px; height: 17px; accent-color: var(--acento); cursor: pointer; }
 

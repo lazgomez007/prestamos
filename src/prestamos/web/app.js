@@ -211,38 +211,43 @@ function sumarCampo(cuotas, campo) {
 
 function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
   const conCarrillo = cuotas.some((c) => c.interes_carrillo !== undefined);
-  const filas = cuotas
+  const regulares = cuotas.filter((c) => !c.es_balon);
+  const balon = cuotas.find((c) => c.es_balon);
+
+  const celdaChk = (c) =>
+    conPagos
+      ? `<td class="centro"><input type="checkbox" class="chk" data-id="${c.id}" ${c.pagada ? "checked" : ""}></td>`
+      : "";
+  const celdaCarr = (c) =>
+    conCarrillo
+      ? `<td class="carrillo">${fmtMoneda(c.interes_carrillo || 0)}</td><td class="mio">${fmtMoneda(c.interes_mio || 0)}</td>`
+      : "";
+
+  const filas = regulares
     .map((c, i) => {
       const pagada = c.pagada ? " pagada" : "";
       const corte = i === indiceCorte ? " corte" : "";
-      const chk = conPagos
-        ? `<td class="centro"><input type="checkbox" class="chk" data-id="${c.id}" ${c.pagada ? "checked" : ""}></td>`
-        : "";
-      const carr = conCarrillo
-        ? `<td class="carrillo">${fmtMoneda(c.interes_carrillo || 0)}</td><td class="mio">${fmtMoneda(c.interes_mio || 0)}</td>`
-        : "";
       return `<tr class="${pagada}${corte}">
         <td class="centro">${c.numero}</td>
         <td class="centro">${fmtFecha(c.fecha)}</td>
         <td class="centro">${c.dias}</td>
         <td>${fmtMoneda(c.interes)}</td>
-        ${carr}
+        ${celdaCarr(c)}
         <td>${fmtMoneda(c.amortizacion)}</td>
         <td>${fmtMoneda(c.cuota)}</td>
         <td>${fmtMoneda(c.saldo)}</td>
-        ${chk}
+        ${celdaChk(c)}
       </tr>`;
     })
     .join("");
 
-  const totInteres = sumarCampo(cuotas, "interes");
-  const totAmort = sumarCampo(cuotas, "amortizacion");
-  const totCuota = sumarCampo(cuotas, "cuota");
-  const totCarrillo = conCarrillo ? sumarCampo(cuotas, "interes_carrillo") : 0;
-  const totMio = conCarrillo ? sumarCampo(cuotas, "interes_mio") : 0;
-  const pieCarr = conCarrillo
-    ? `<td>${fmtMoneda(totCarrillo)}</td><td>${fmtMoneda(totMio)}</td>`
-    : "";
+  // Totales: solo de las cuotas regulares (el balón va en su propia línea).
+  const totInteres = sumarCampo(regulares, "interes");
+  const totAmort = sumarCampo(regulares, "amortizacion");
+  const totCuota = sumarCampo(regulares, "cuota");
+  const totCarrillo = conCarrillo ? sumarCampo(regulares, "interes_carrillo") : 0;
+  const totMio = conCarrillo ? sumarCampo(regulares, "interes_mio") : 0;
+  const pieCarr = conCarrillo ? `<td>${fmtMoneda(totCarrillo)}</td><td>${fmtMoneda(totMio)}</td>` : "";
   const pie = `<tr class="fila-total">
       <td class="izq" colspan="3">Totales</td>
       <td>${fmtMoneda(totInteres)}</td>
@@ -253,13 +258,31 @@ function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
       ${conPagos ? "<td></td>" : ""}
     </tr>`;
 
-  const thCarr = conCarrillo
-    ? '<th>Int. Carrillo</th><th>Mi interés</th>'
+  // Línea de pago del saldo de capital (cuota balón), si existe.
+  const filaBalon = balon
+    ? `<tr class="fila-balon">
+        <td class="izq" colspan="3">🏦 Pago del saldo del capital</td>
+        <td>${fmtMoneda(balon.interes)}</td>
+        ${celdaCarr(balon)}
+        <td>${fmtMoneda(balon.amortizacion)}</td>
+        <td>${fmtMoneda(balon.cuota)}</td>
+        <td>${fmtMoneda(balon.saldo)}</td>
+        ${celdaChk(balon)}
+      </tr>`
     : "";
+
+  const thCarr = conCarrillo ? '<th>Int. Carrillo</th><th>Mi interés</th>' : "";
   const resumenCarr = conCarrillo
     ? `<div class="ti carrillo-box"><span class="ti-etq">🏦 Interés de Carrillo</span><span class="ti-val">${fmtMoneda(totCarrillo)}</span></div>
        <div class="ti ganancia"><span class="ti-etq">💰 Mi interés</span><span class="ti-val">${fmtMoneda(totMio)}</span></div>`
     : `<div class="ti ganancia"><span class="ti-etq">💰 Ganancia por intereses</span><span class="ti-val">${fmtMoneda(totInteres)}</span></div>`;
+  const cardBalon = balon
+    ? `<div class="ti capital"><span class="ti-etq">🏦 Pago del saldo del capital</span><span class="ti-val">${fmtMoneda(balon.cuota)}</span></div>`
+    : "";
+
+  // Capital recuperado y total a cobrar SÍ incluyen el balón.
+  const capitalRecuperado = sumarCampo(cuotas, "amortizacion");
+  const totalCobrar = sumarCampo(cuotas, "cuota");
 
   return `<div class="tabla-wrap"><table class="crono">
     <thead><tr>
@@ -268,12 +291,13 @@ function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
       ${conPagos ? '<th class="centro">Pagada</th>' : ""}
     </tr></thead>
     <tbody>${filas}</tbody>
-    <tfoot>${pie}</tfoot>
+    <tfoot>${pie}${filaBalon}</tfoot>
   </table></div>
   <div class="totales-resumen">
     ${resumenCarr}
-    <div class="ti capital"><span class="ti-etq">🔁 Capital recuperado</span><span class="ti-val">${fmtMoneda(totAmort)}</span></div>
-    <div class="ti"><span class="ti-etq">Total a cobrar</span><span class="ti-val">${fmtMoneda(totCuota)}</span></div>
+    <div class="ti capital"><span class="ti-etq">🔁 Capital recuperado</span><span class="ti-val">${fmtMoneda(capitalRecuperado)}</span></div>
+    ${cardBalon}
+    <div class="ti"><span class="ti-etq">Total a cobrar</span><span class="ti-val">${fmtMoneda(totalCobrar)}</span></div>
   </div>`;
 }
 

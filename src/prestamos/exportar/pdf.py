@@ -166,19 +166,39 @@ def exportar_estado_cuenta(
         enc += ["Int. Carrillo", "Mi interés"]
     enc += ["Amortización", "Cuota", "Saldo Pendiente", "Pagada"]
 
+    # El balón (devolución del capital) se muestra en su propia línea, separado
+    # de las cuotas regulares (como en el cronograma oficial).
+    con_balon = bool(getattr(prestamo, "capital_final", 0) and Decimal(prestamo.capital_final) > 0)
+    regulares = cuotas[:-1] if con_balon else cuotas
+    balon = cuotas[-1] if con_balon else None
+
     datos = [enc]
-    for idx, c in enumerate(cuotas):
+    for idx, c in enumerate(regulares):
         fila = [str(c.numero), _fecha(c.fecha), str(c.dias), _m(c.interes)]
         if con_carrillo:
             ic, im = pares[idx]
             fila += [_m(ic), _m(im)]
         fila += [_m(c.amortizacion), _m(c.cuota), _m(c.saldo), "Sí" if c.pagada else "—"]
         datos.append(fila)
-    fila_tot = ["", "", "TOTALES", _m(interes)]
+
+    # Totales de las cuotas regulares.
+    int_reg = sum((c.interes for c in regulares), Decimal(0))
+    amort_reg = sum((c.amortizacion for c in regulares), Decimal(0))
+    tot_reg = sum((c.cuota for c in regulares), Decimal(0))
+    fila_tot = ["", "", "TOTALES", _m(int_reg)]
     if con_carrillo:
-        fila_tot += [_m(tot_carrillo), _m(tot_mio)]
-    fila_tot += [_m(amort), _m(total), "", ""]
+        n_reg = len(regulares)
+        fila_tot += [_m(sum((ic for ic, _ in pares[:n_reg]), Decimal(0))),
+                     _m(sum((im for _, im in pares[:n_reg]), Decimal(0)))]
+    fila_tot += [_m(amort_reg), _m(tot_reg), "", ""]
     datos.append(fila_tot)
+
+    if con_balon:
+        fila_balon = ["Pago del saldo del capital", "", "", _m(balon.interes)]
+        if con_carrillo:
+            fila_balon += [_m(Decimal(0)), _m(Decimal(0))]
+        fila_balon += [_m(balon.amortizacion), _m(balon.cuota), _m(balon.saldo), "—"]
+        datos.append(fila_balon)
 
     if con_carrillo:
         anchos = [10, 22, 13, 28, 30, 30, 30, 28, 36, 14]
@@ -186,6 +206,7 @@ def exportar_estado_cuenta(
         anchos = [12, 26, 17, 38, 40, 38, 44, 18]
     n_cols = len(enc)
     saldo_idx = n_cols - 2
+    fila_tot_idx = len(regulares) + 1  # índice de la fila de totales
     tabla = Table(datos, colWidths=[w * mm for w in anchos], repeatRows=1)
     estilo = [
         ("BACKGROUND", (0, 0), (-1, 0), _AZUL),
@@ -199,16 +220,24 @@ def exportar_estado_cuenta(
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D9D9D9")),
-        ("BACKGROUND", (0, -1), (-1, -1), _AZUL_CLARO),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("LINEABOVE", (0, -1), (-1, -1), 1, _AZUL),
+        # Fila de totales (cuotas regulares).
+        ("BACKGROUND", (0, fila_tot_idx), (-1, fila_tot_idx), _AZUL_CLARO),
+        ("FONTNAME", (0, fila_tot_idx), (-1, fila_tot_idx), "Helvetica-Bold"),
+        ("LINEABOVE", (0, fila_tot_idx), (-1, fila_tot_idx), 1, _AZUL),
     ]
     if con_carrillo:
         estilo += [
-            ("TEXTCOLOR", (4, 1), (4, -1), colors.HexColor("#6b3fc0")),
-            ("TEXTCOLOR", (5, 1), (5, -1), colors.HexColor("#1F9D57")),
+            ("TEXTCOLOR", (4, 1), (4, len(regulares)), colors.HexColor("#6b3fc0")),
+            ("TEXTCOLOR", (5, 1), (5, len(regulares)), colors.HexColor("#1F9D57")),
         ]
-    for i, c in enumerate(cuotas, start=1):
+    if con_balon:
+        estilo += [
+            ("SPAN", (0, -1), (2, -1)),
+            ("ALIGN", (0, -1), (0, -1), "LEFT"),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FDF3DA")),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ]
+    for i, c in enumerate(regulares, start=1):
         if c.pagada:
             estilo.append(("BACKGROUND", (0, i), (-1, i), _VERDE))
         elif i % 2 == 0:
