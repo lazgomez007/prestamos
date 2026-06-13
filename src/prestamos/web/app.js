@@ -584,6 +584,66 @@ async function mostrarDashboard() {
   renderDashboard(data);
   $(".contenedor").classList.add("oculto");
   $("#vista-dashboard").classList.remove("oculto");
+  dibujarLinea(data.meses);  // tras mostrar, para medir el ancho real
+}
+
+function dibujarLinea(meses) {
+  const cont = document.getElementById("dash-chart");
+  if (!cont) return;
+  const n = meses.length;
+  if (!n) { cont.innerHTML = '<p style="color:var(--texto-suave);margin:auto">Sin datos.</p>'; return; }
+
+  const W = Math.max(cont.clientWidth, 320);
+  const H = cont.clientHeight || 210;
+  const padX = 34, padTop = 16, padBot = 26;
+  const vals = meses.map((m) => Number(m.interes_mio));
+  const max = Math.max(1, ...vals);
+  const hoy = new Date().toISOString().slice(0, 7);
+  const xs = (i) => (n === 1 ? W / 2 : padX + (i / (n - 1)) * (W - 2 * padX));
+  const ys = (v) => (H - padBot) - (v / max) * (H - padTop - padBot);
+
+  const linePts = meses.map((m, i) => `${xs(i).toFixed(1)},${ys(vals[i]).toFixed(1)}`).join(" ");
+  const areaPts = `${xs(0).toFixed(1)},${(H - padBot).toFixed(1)} ${linePts} ${xs(n - 1).toFixed(1)},${(H - padBot).toFixed(1)}`;
+  const circles = meses.map((m, i) =>
+    `<circle class="pt${m.mes === hoy ? " actual" : ""}" cx="${xs(i).toFixed(1)}" cy="${ys(vals[i]).toFixed(1)}" r="${m.mes === hoy ? 4 : 2.2}"/>`
+  ).join("");
+  const paso = Math.max(1, Math.ceil(n / 8));
+  let labels = "";
+  for (let i = 0; i < n; i += paso) {
+    labels += `<text class="eje" x="${xs(i).toFixed(1)}" y="${H - 6}" text-anchor="middle">${meses[i].mes.slice(2).replace("-", "/")}</text>`;
+  }
+
+  cont.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%">
+      <polyline points="${areaPts}" class="area"/>
+      <polyline points="${linePts}" class="linea"/>
+      ${circles}
+      <line class="hl-x oculto" y1="${padTop}" y2="${H - padBot}"/>
+      <circle class="hl oculto" r="5"/>
+      ${labels}
+    </svg>
+    <div class="chart-tip oculto"></div>`;
+
+  const svg = cont.querySelector("svg");
+  const hl = cont.querySelector(".hl");
+  const hlx = cont.querySelector(".hl-x");
+  const tip = cont.querySelector(".chart-tip");
+  svg.addEventListener("mousemove", (e) => {
+    const rect = svg.getBoundingClientRect();
+    let i = Math.round(((e.clientX - rect.left) / rect.width) * (n - 1));
+    i = Math.max(0, Math.min(n - 1, i));
+    const cx = xs(i), cy = ys(vals[i]);
+    hl.setAttribute("cx", cx); hl.setAttribute("cy", cy); hl.classList.remove("oculto");
+    hlx.setAttribute("x1", cx); hlx.setAttribute("x2", cx); hlx.classList.remove("oculto");
+    tip.innerHTML = `<b>${fmtMes(meses[i].mes)}</b><br>Mi interés: ${fmtMoneda(meses[i].interes_mio)}`;
+    const left = Math.min(Math.max((cx / W) * rect.width, 70), rect.width - 70);
+    tip.style.left = left + "px";
+    tip.style.top = ((cy / H) * rect.height - 6) + "px";
+    tip.classList.remove("oculto");
+  });
+  svg.addEventListener("mouseleave", () => {
+    hl.classList.add("oculto"); hlx.classList.add("oculto"); tip.classList.add("oculto");
+  });
 }
 
 function ocultarDashboard() {
@@ -602,17 +662,6 @@ function renderDashboard(data) {
   }
   const a = actual || { interes_mio: "0", amortizacion: "0", impuesto: "0", saldo_pendiente: "0", falta_cobrar: "0" };
   const mesActual = actual ? actual.mes : "";
-
-  const maxInt = Math.max(1, ...meses.map((m) => Number(m.interes_mio)));
-  const barras = meses
-    .map((m) => {
-      const h = Math.round((Number(m.interes_mio) / maxInt) * 100);
-      return `<div class="barra-col${m.mes === mesActual ? " actual" : ""}" title="${fmtMes(m.mes)}: ${fmtMoneda(m.interes_mio)} (mío)">
-        <div class="barra" style="height:${h}%"></div>
-        <div class="barra-lbl">${m.mes.slice(2).replace("-", "/")}</div>
-      </div>`;
-    })
-    .join("");
 
   const filas = meses
     .map((m) => `<tr class="${m.mes === mesActual ? "mes-actual" : ""}">
@@ -645,7 +694,7 @@ function renderDashboard(data) {
       <div class="dcard excl"><div class="etq">⛔ Interés de Carrillo (no entra)</div><div class="val">${fmtMoneda(t.interes_carrillo)}</div></div>
     </div>
     <h3 class="dash-sub">Mi interés por mes</h3>
-    <div class="dash-chart">${barras}</div>
+    <div class="dash-chart" id="dash-chart"></div>
     <h3 class="dash-sub">Historial mensual</h3>
     <div class="tabla-wrap dash-tabla">
       <table class="crono">

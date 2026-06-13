@@ -367,23 +367,27 @@ table.crono td.mio { color: var(--verde); }
 .dash-sub { margin: 22px 0 10px; font-size: 1rem; }
 
 .dash-chart {
-  display: flex; align-items: flex-end; gap: 4px;
-  height: 180px; overflow-x: auto; padding: 10px 6px 0;
+  position: relative; height: 220px; padding: 6px;
   background: var(--bg-panel); border: 1px solid var(--borde);
   border-radius: var(--radio); box-shadow: var(--sombra);
 }
-.barra-col {
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  min-width: 26px; height: 100%;
+.dash-chart svg { display: block; }
+.dash-chart .area { fill: var(--acento-suave); opacity: .55; stroke: none; }
+.dash-chart .linea {
+  fill: none; stroke: var(--acento); stroke-width: 2;
+  stroke-linejoin: round; stroke-linecap: round;
 }
-.barra-col .barra {
-  width: 16px; background: linear-gradient(180deg, var(--acento), #7aa0ff);
-  border-radius: 4px 4px 0 0; min-height: 2px; transition: height var(--trans);
-}
-.barra-col.actual .barra { background: linear-gradient(180deg, var(--ambar), #ffd87a); }
-.barra-col .barra-lbl {
-  font-size: .6rem; color: var(--texto-suave); margin-top: 4px;
-  transform: rotate(-45deg); white-space: nowrap; height: 22px;
+.dash-chart .pt { fill: var(--acento); }
+.dash-chart .pt.actual { fill: var(--ambar); }
+.dash-chart .hl { fill: var(--ambar); stroke: var(--bg-panel); stroke-width: 2; }
+.dash-chart .hl-x { stroke: var(--texto-suave); stroke-width: 1; stroke-dasharray: 3 3; }
+.dash-chart text.eje { fill: var(--texto-suave); font-size: 10px; }
+.chart-tip {
+  position: absolute; transform: translate(-50%, -100%);
+  background: var(--texto); color: var(--bg-panel);
+  padding: 6px 10px; border-radius: 8px; font-size: .8rem;
+  line-height: 1.3; pointer-events: none; white-space: nowrap;
+  box-shadow: var(--sombra-fuerte); z-index: 5;
 }
 .dash-tabla { max-height: 420px; }
 table.crono tr.mes-actual td { background: var(--ambar-bg); font-weight: 650; }
