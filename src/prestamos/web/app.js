@@ -266,6 +266,7 @@ function vistaDatos(p) {
     <div class="dato"><div class="etq">Fecha de desembolso</div><div class="val">${fmtFecha(p.fecha_desembolso)}</div></div>
     <div class="dato"><div class="etq">Primer vencimiento</div><div class="val">${fmtFecha(p.fecha_primer_vencimiento)}</div></div>
     <div class="dato"><div class="etq">N° de cuotas</div><div class="val">${p.num_cuotas}</div></div>
+    ${Number(p.capital_final) > 0 ? `<div class="dato"><div class="etq">Devolución de capital al final</div><div class="val">${fmtMoneda(p.capital_final)}</div></div>` : ""}
     <div class="dato"><div class="etq">Estado</div><div class="val">${escapar(p.estado)}</div></div>
   </div>
   <div class="notas-box">${escapar(p.notas) || "<i>Sin notas.</i>"}</div>`;
@@ -330,6 +331,7 @@ function abrirFormulario(p) {
         <div class="campo"><label>Fecha de desembolso</label><input id="f-desemb" type="date" value="${e.fecha_desembolso || hoy}"></div>
         <div class="campo"><label>Primer vencimiento</label><input id="f-venc" type="date" value="${e.fecha_primer_vencimiento || ""}"><span class="ayuda">Tú la eliges; puede ser menos de un mes.</span></div>
         <div class="campo"><label>N° de cuotas</label><input id="f-cuotas" type="number" min="1" step="1" value="${e.num_cuotas || 12}"></div>
+        <div class="campo ancho"><label>Devolución de capital al final (S/)</label><input id="f-capital" type="number" step="0.01" min="0" value="${e.capital_final ? Number(e.capital_final) : 0}"><span class="ayuda">Saldo de capital que el cliente devuelve al término (cuota balón). Déjalo en 0 si se amortiza todo en las cuotas.</span></div>
         <div class="campo ancho"><label>Notas</label><textarea id="f-notas" rows="2">${escapar(e.notas || "")}</textarea></div>
       </div>
       <div class="previa" id="f-previa">
@@ -346,7 +348,7 @@ function abrirFormulario(p) {
 
   $("#m-cerrar").onclick = cerrarModal;
   $("#m-cancelar").onclick = cerrarModal;
-  ["f-nombre", "f-tel", "f-email", "f-monto", "f-tasa", "f-formula", "f-desemb", "f-venc", "f-cuotas", "f-notas"].forEach((id) => {
+  ["f-nombre", "f-tel", "f-email", "f-monto", "f-tasa", "f-formula", "f-capital", "f-desemb", "f-venc", "f-cuotas", "f-notas"].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener("input", previaDebounced);
   });
@@ -363,6 +365,7 @@ function leerFormulario() {
     tasa_mensual_pct: $("#f-tasa").value,
     formula: $("#f-formula").value,
     fuente: $("#f-fuente").value,
+    capital_final: $("#f-capital").value || "0",
     fecha_desembolso: $("#f-desemb").value,
     fecha_primer_vencimiento: $("#f-venc").value,
     num_cuotas: $("#f-cuotas").value,

@@ -58,6 +58,7 @@ class Prestamo:
     num_cuotas: int
     formula: str = FORMULA_EFECTIVA
     fuente: str = FUENTE_PROPIOS
+    capital_final: Decimal = Decimal("0")
     notas: str = ""
     estado: str = ESTADO_AL_DIA
     creado_en: date | None = None

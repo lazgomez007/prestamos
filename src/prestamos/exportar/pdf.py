@@ -87,6 +87,11 @@ def exportar_estado_cuenta(
         + celda("Primer vencimiento", _fecha(prestamo.fecha_primer_vencimiento)),
         celda("N° de cuotas", len(cuotas)) + celda("Emitido", _fecha(datetime.now().date())),
     ]
+    if prestamo.capital_final and Decimal(prestamo.capital_final) > 0:
+        info.append(
+            celda("Devolución de capital al final", _m(prestamo.capital_final))
+            + celda("Tipo", "Cuota balón")
+        )
     t_info = Table(info, colWidths=[35 * mm, 70 * mm, 38 * mm, 70 * mm])
     t_info.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),

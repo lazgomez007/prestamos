@@ -89,10 +89,16 @@ class Cuota:
     saldo: Decimal
 
 
-def calcular_cuota_fija(saldo_inicial: Decimal, tasas_periodo: list[Decimal]) -> Decimal:
-    """Cuota fija que amortiza el saldo con las tasas por periodo r_i.
+def calcular_cuota_fija(
+    saldo_inicial: Decimal,
+    tasas_periodo: list[Decimal],
+    capital_final: Decimal = Decimal(0),
+) -> Decimal:
+    """Cuota fija que amortiza el saldo hasta ``capital_final`` con las tasas r_i.
 
-        C = saldo * Π(1 + r_i) / Σ_i [ Π_{j>i}(1 + r_j) ]
+        C = (saldo * Π(1 + r_i) - capital_final) / Σ_i [ Π_{j>i}(1 + r_j) ]
+
+    Con ``capital_final = 0`` amortiza por completo (préstamo normal).
     """
     factores = [Decimal(1) + r for r in tasas_periodo]
     sufijo = Decimal(1)
@@ -101,7 +107,7 @@ def calcular_cuota_fija(saldo_inicial: Decimal, tasas_periodo: list[Decimal]) ->
         suma += sufijo
         sufijo *= f
     producto_total = sufijo
-    return redondear(saldo_inicial * producto_total / suma)
+    return redondear((saldo_inicial * producto_total - Decimal(capital_final)) / suma)
 
 
 def construir_cronograma(
@@ -109,14 +115,24 @@ def construir_cronograma(
     tasa_mensual: Decimal,
     formula: str,
     fechas: list[date],
+    capital_final: Decimal = Decimal(0),
 ) -> tuple[list[Cuota], Decimal]:
     """Genera el cronograma. ``fechas[0]`` es la fecha base (desembolso o fecha
     de ampliación) y ``fechas[1:]`` son las fechas de vencimiento de cada cuota.
+
+    Si ``capital_final > 0``, las cuotas amortizan hasta ese saldo y se añade una
+    fila final de "devolución de capital" (cuota balón) que lo cancela.
     """
     if len(fechas) < 2:
         raise ValueError("Se requieren al menos una fecha base y una de cuota.")
 
     saldo_inicial = Decimal(saldo_inicial)
+    capital_final = Decimal(capital_final)
+    if capital_final < 0:
+        raise ValueError("La devolución de capital no puede ser negativa.")
+    if capital_final >= saldo_inicial:
+        raise ValueError("La devolución de capital debe ser menor que el monto.")
+
     dias_periodos = [(fechas[i + 1] - fechas[i]).days for i in range(len(fechas) - 1)]
     if any(d <= 0 for d in dias_periodos):
         raise ValueError("Las fechas deben ser crecientes (días de periodo > 0).")
@@ -124,14 +140,15 @@ def construir_cronograma(
     diaria = tasa_por_dia(tasa_mensual, formula)
     tasas_periodo = [diaria * Decimal(d) for d in dias_periodos]
     n = len(dias_periodos)
-    cuota_fija = calcular_cuota_fija(saldo_inicial, tasas_periodo)
+    cuota_fija = calcular_cuota_fija(saldo_inicial, tasas_periodo, capital_final)
 
     filas: list[Cuota] = []
     saldo = saldo_inicial
     for i in range(n):
         interes = redondear(saldo * tasas_periodo[i])
         if i == n - 1:
-            amortizacion = saldo
+            # Última cuota regular: deja el saldo justo en capital_final.
+            amortizacion = redondear(saldo - capital_final)
             cuota = redondear(amortizacion + interes)
         else:
             cuota = cuota_fija
@@ -140,6 +157,13 @@ def construir_cronograma(
         filas.append(
             Cuota(i + 1, fechas[i + 1], dias_periodos[i], interes, amortizacion, cuota, saldo)
         )
+
+    # Fila final de devolución del saldo de capital (cuota balón).
+    if capital_final > 0:
+        filas.append(
+            Cuota(n + 1, fechas[n], 0, Decimal("0.00"), saldo, saldo, Decimal("0.00"))
+        )
+
     return filas, cuota_fija
 
 
@@ -150,10 +174,11 @@ def generar_cronograma(
     fecha_desembolso: date,
     fecha_primer_vencimiento: date,
     num_cuotas: int,
+    capital_final: Decimal = Decimal(0),
 ) -> tuple[list[Cuota], Decimal]:
     """Cronograma de un préstamo nuevo, con primer vencimiento flexible."""
     fechas = [fecha_desembolso] + fechas_vencimiento(fecha_primer_vencimiento, num_cuotas)
-    return construir_cronograma(monto, tasa_mensual, formula, fechas)
+    return construir_cronograma(monto, tasa_mensual, formula, fechas, capital_final)
 
 
 def total_a_pagar(cuotas: list[Cuota]) -> Decimal:

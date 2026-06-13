@@ -47,7 +47,9 @@ def exportar_cronograma(
         f"Tasa mensual: {_f(prestamo.tasa_mensual) * 100:.4f}%    "
         f"Fórmula: {prestamo.formula}    "
         f"Fuente: {prestamo.fuente}    "
-        f"Desembolso: {prestamo.fecha_desembolso.isoformat()}    "
+        + (f"Devolución capital final: S/ {_f(prestamo.capital_final):,.2f}    "
+           if prestamo.capital_final and float(prestamo.capital_final) > 0 else "")
+        + f"Desembolso: {prestamo.fecha_desembolso.isoformat()}    "
         f"1er venc.: {prestamo.fecha_primer_vencimiento.isoformat()}    "
         f"Cuotas: {len(cuotas)}"
     )

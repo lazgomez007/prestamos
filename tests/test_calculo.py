@@ -96,6 +96,31 @@ def test_formula_simple_amortiza():
     assert cuotas[0].interes != D("266.00")
 
 
+def test_capital_final_cuota_balon():
+    # Presta 10000, devuelve 5000 al final; el resto se amortiza en 12 cuotas.
+    cuotas, cuota = generar_cronograma(
+        monto=D("10000"), tasa_mensual=D("0.016"), formula=FORMULA_EFECTIVA,
+        fecha_desembolso=date(2026, 1, 1), fecha_primer_vencimiento=date(2026, 2, 1),
+        num_cuotas=12, capital_final=D("5000"),
+    )
+    assert len(cuotas) == 13                      # 12 cuotas + devolución
+    assert cuotas[11].saldo == D("5000.00")       # saldo tras la última cuota
+    assert cuotas[12].interes == D("0.00")
+    assert cuotas[12].amortizacion == D("5000.00")
+    assert cuotas[12].saldo == D("0.00")
+    assert sum(c.amortizacion for c in cuotas) == D("10000.00")
+
+
+def test_capital_final_invalido():
+    import pytest
+    with pytest.raises(ValueError):
+        generar_cronograma(
+            monto=D("10000"), tasa_mensual=D("0.016"), formula=FORMULA_EFECTIVA,
+            fecha_desembolso=date(2026, 1, 1), fecha_primer_vencimiento=date(2026, 2, 1),
+            num_cuotas=12, capital_final=D("10000"),
+        )
+
+
 if __name__ == "__main__":
     cuotas, cuota = _caso_obligatorio()
     print("Cuota fija:", cuota, " Total:", total_a_pagar(cuotas))

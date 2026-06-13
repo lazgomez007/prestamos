@@ -130,6 +130,7 @@ def _prestamo_detalle(p: Prestamo) -> dict:
         "tasa_mensual_pct": str((p.tasa_mensual * 100).normalize()),
         "formula": p.formula,
         "fuente": p.fuente,
+        "capital_final": _m(p.capital_final),
         "fecha_desembolso": p.fecha_desembolso.isoformat(),
         "fecha_primer_vencimiento": p.fecha_primer_vencimiento.isoformat(),
         "num_cuotas": p.num_cuotas,
@@ -170,12 +171,17 @@ def _prestamo_desde_payload(data: dict, base: Prestamo | None = None) -> Prestam
     p.tasa_mensual = _pct_a_fraccion(data["tasa_mensual_pct"])
     p.formula = formula
     p.fuente = (data.get("fuente") or FUENTE_PROPIOS).strip() or FUENTE_PROPIOS
+    p.capital_final = _dec(data.get("capital_final") or 0)
     p.fecha_desembolso = _fecha(data["fecha_desembolso"])
     p.fecha_primer_vencimiento = _fecha(data["fecha_primer_vencimiento"])
     p.num_cuotas = int(data["num_cuotas"])
     p.notas = data.get("notas", "").strip()
     if p.monto <= 0:
         raise HTTPException(400, "El monto debe ser mayor que 0.")
+    if p.capital_final < 0:
+        raise HTTPException(400, "La devolución de capital no puede ser negativa.")
+    if p.capital_final >= p.monto:
+        raise HTTPException(400, "La devolución de capital debe ser menor que el monto.")
     if p.num_cuotas < 1:
         raise HTTPException(400, "El número de cuotas debe ser al menos 1.")
     if p.fecha_primer_vencimiento <= p.fecha_desembolso:
@@ -226,7 +232,7 @@ def calcular(data: dict = Body(...)):
     p = _prestamo_desde_payload(data)
     cuotas, cuota = generar_cronograma(
         p.monto, p.tasa_mensual, p.formula,
-        p.fecha_desembolso, p.fecha_primer_vencimiento, p.num_cuotas,
+        p.fecha_desembolso, p.fecha_primer_vencimiento, p.num_cuotas, p.capital_final,
     )
     return {
         "cuota_fija": _m(cuota),
