@@ -566,8 +566,101 @@ async function eliminar(p) {
   }
 }
 
+/* ===== Dashboard de patrimonio ===== */
+const MESES_ABR = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+function fmtMes(m) {
+  const [a, mm] = m.split("-");
+  return `${MESES_ABR[parseInt(mm, 10) - 1]} ${a}`;
+}
+
+async function mostrarDashboard() {
+  let data;
+  try {
+    data = await api("GET", "/api/dashboard");
+  } catch (err) {
+    avisar(err.message, true);
+    return;
+  }
+  renderDashboard(data);
+  $(".contenedor").classList.add("oculto");
+  $("#vista-dashboard").classList.remove("oculto");
+}
+
+function ocultarDashboard() {
+  $("#vista-dashboard").classList.add("oculto");
+  $(".contenedor").classList.remove("oculto");
+}
+
+function renderDashboard(data) {
+  const meses = data.meses;
+  const t = data.totales;
+  const hoy = new Date().toISOString().slice(0, 7);
+  let actual = meses.find((m) => m.mes === hoy);
+  if (!actual) {
+    const previas = meses.filter((m) => m.mes <= hoy);
+    actual = previas.length ? previas[previas.length - 1] : (meses[0] || null);
+  }
+  const a = actual || { interes_mio: "0", amortizacion: "0", impuesto: "0", saldo_pendiente: "0" };
+  const mesActual = actual ? actual.mes : "";
+
+  const maxInt = Math.max(1, ...meses.map((m) => Number(m.interes_mio)));
+  const barras = meses
+    .map((m) => {
+      const h = Math.round((Number(m.interes_mio) / maxInt) * 100);
+      return `<div class="barra-col${m.mes === mesActual ? " actual" : ""}" title="${fmtMes(m.mes)}: ${fmtMoneda(m.interes_mio)} (mío)">
+        <div class="barra" style="height:${h}%"></div>
+        <div class="barra-lbl">${m.mes.slice(2).replace("-", "/")}</div>
+      </div>`;
+    })
+    .join("");
+
+  const filas = meses
+    .map((m) => `<tr class="${m.mes === mesActual ? "mes-actual" : ""}">
+        <td class="izq">${fmtMes(m.mes)}</td>
+        <td>${fmtMoneda(m.interes_mio)}</td>
+        <td>${fmtMoneda(m.amortizacion)}</td>
+        <td>${fmtMoneda(m.impuesto)}</td>
+        <td>${fmtMoneda(m.saldo_pendiente)}</td>
+      </tr>`)
+    .join("");
+
+  $("#vista-dashboard").innerHTML = `
+    <div class="dash-cab">
+      <button class="btn" id="dash-volver">← Préstamos</button>
+      <h2>Dashboard de patrimonio</h2>
+      <span class="dash-hint">Mes actual: <b>${fmtMes(hoy)}</b></span>
+    </div>
+    <div class="dash-cards">
+      <div class="dcard patri"><div class="etq">🏦 Patrimonio (capital pendiente)</div><div class="val">${fmtMoneda(a.saldo_pendiente)}</div></div>
+      <div class="dcard"><div class="etq">📅 Mi interés (este mes)</div><div class="val">${fmtMoneda(a.interes_mio)}</div></div>
+      <div class="dcard"><div class="etq">🔁 Amortización (este mes)</div><div class="val">${fmtMoneda(a.amortizacion)}</div></div>
+      <div class="dcard imp"><div class="etq">🧾 Impuesto a pagar (este mes, 5%)</div><div class="val">${fmtMoneda(a.impuesto)}</div></div>
+    </div>
+    <div class="dash-cards">
+      <div class="dcard"><div class="etq">Σ Mi interés (total)</div><div class="val">${fmtMoneda(t.interes_mio)}</div></div>
+      <div class="dcard"><div class="etq">Σ Amortización (capital)</div><div class="val">${fmtMoneda(t.amortizacion)}</div></div>
+      <div class="dcard imp"><div class="etq">Σ Impuesto total (5%)</div><div class="val">${fmtMoneda(t.impuesto)}</div></div>
+      <div class="dcard excl"><div class="etq">⛔ Interés de Carrillo (no entra)</div><div class="val">${fmtMoneda(t.interes_carrillo)}</div></div>
+    </div>
+    <h3 class="dash-sub">Mi interés por mes</h3>
+    <div class="dash-chart">${barras}</div>
+    <h3 class="dash-sub">Historial mensual</h3>
+    <div class="tabla-wrap dash-tabla">
+      <table class="crono">
+        <thead><tr>
+          <th class="izq">Mes</th><th>Mi interés</th><th>Amortización</th>
+          <th>Impuesto (5%)</th><th>Saldo pendiente</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+
+  $("#dash-volver").onclick = ocultarDashboard;
+}
+
 /* ===== Arranque ===== */
 async function init() {
+  $("#btn-dashboard").addEventListener("click", mostrarDashboard);
   $("#btn-nuevo").addEventListener("click", () => abrirFormulario(null));
   $("#buscar").addEventListener("input", (e) => { estado.filtro = e.target.value; renderLista(); });
   $("#filtro-fuente").addEventListener("change", (e) => { estado.filtroFuente = e.target.value; renderLista(); });

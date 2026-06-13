@@ -21,6 +21,7 @@ from ..core.calculo import (
     total_a_pagar,
     total_interes,
 )
+from ..core.dashboard import resumen_mensual
 from ..core.modelos import FUENTE_CARRILLO, FUENTE_PROPIOS, FUENTES, Cliente, Prestamo
 from ..core.simulacion import simular_ampliacion
 from ..datos.repositorio import Repositorio
@@ -243,6 +244,22 @@ def set_pref(clave: str, data: dict = Body(...)):
 @app.get("/api/fuentes")
 def fuentes():
     return {"fuentes": FUENTES}
+
+
+@app.get("/api/dashboard")
+def dashboard():
+    repo = Repositorio()
+    try:
+        data = resumen_mensual(repo.listar_prestamos())
+        return {
+            "meses": [
+                {k: (str(v) if isinstance(v, Decimal) else v) for k, v in f.items()}
+                for f in data["meses"]
+            ],
+            "totales": {k: str(v) for k, v in data["totales"].items()},
+        }
+    finally:
+        repo.cerrar()
 
 
 @app.get("/api/prestamos")

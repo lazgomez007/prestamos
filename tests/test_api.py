@@ -107,6 +107,15 @@ def test_editar_preserva_pagos():
     assert r.json()["resumen"]["cuotas_pagadas"] == 1
 
 
+def test_dashboard_endpoint():
+    cliente.post("/api/prestamos", json=CASO)
+    d = cliente.get("/api/dashboard").json()
+    assert "meses" in d and "totales" in d
+    assert all({"mes", "interes_mio", "amortizacion", "impuesto", "saldo_pendiente"} <= set(m)
+               for m in d["meses"])
+    assert "impuesto" in d["totales"] and "interes_carrillo" in d["totales"]
+
+
 def test_formula_simple_y_validaciones():
     caso_b = dict(CASO, formula="B")
     assert cliente.post("/api/calcular", json=caso_b).status_code == 200

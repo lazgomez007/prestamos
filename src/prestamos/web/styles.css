@@ -342,6 +342,52 @@ table.crono td.mio { color: var(--verde); }
 }
 .aviso.error { background: var(--rojo); color: #fff; }
 
+/* ===== Dashboard ===== */
+.vista-dashboard {
+  flex: 1; overflow-y: auto; padding: 18px 24px;
+}
+.dash-cab { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.dash-cab h2 { margin: 0; font-size: 1.25rem; }
+.dash-hint { margin-left: auto; color: var(--texto-suave); font-size: .9rem; }
+
+.dash-cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.dcard {
+  flex: 1; min-width: 180px;
+  background: var(--bg-panel); border: 1px solid var(--borde);
+  border-radius: var(--radio); padding: 14px 16px; box-shadow: var(--sombra);
+}
+.dcard .etq { font-size: .82rem; color: var(--texto-suave); }
+.dcard .val { font-size: 1.4rem; font-weight: 700; margin-top: 6px; }
+.dcard.patri { background: var(--acento-suave); border-color: transparent; }
+.dcard.patri .val { color: var(--acento); }
+.dcard.imp .val { color: var(--ambar); }
+.dcard.excl { background: var(--bg-suave); }
+.dcard.excl .val { color: var(--texto-suave); text-decoration: line-through; }
+
+.dash-sub { margin: 22px 0 10px; font-size: 1rem; }
+
+.dash-chart {
+  display: flex; align-items: flex-end; gap: 4px;
+  height: 180px; overflow-x: auto; padding: 10px 6px 0;
+  background: var(--bg-panel); border: 1px solid var(--borde);
+  border-radius: var(--radio); box-shadow: var(--sombra);
+}
+.barra-col {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  min-width: 26px; height: 100%;
+}
+.barra-col .barra {
+  width: 16px; background: linear-gradient(180deg, var(--acento), #7aa0ff);
+  border-radius: 4px 4px 0 0; min-height: 2px; transition: height var(--trans);
+}
+.barra-col.actual .barra { background: linear-gradient(180deg, var(--ambar), #ffd87a); }
+.barra-col .barra-lbl {
+  font-size: .6rem; color: var(--texto-suave); margin-top: 4px;
+  transform: rotate(-45deg); white-space: nowrap; height: 22px;
+}
+.dash-tabla { max-height: 420px; }
+table.crono tr.mes-actual td { background: var(--ambar-bg); font-weight: 650; }
+
 .oculto { display: none !important; }
 
 /* Scrollbars suaves */

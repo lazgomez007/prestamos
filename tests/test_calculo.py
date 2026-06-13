@@ -157,6 +157,41 @@ def test_desglose_carrillo_suma_al_interes():
     assert pares[0][0] < cuotas[0].interes
 
 
+def test_dashboard_impuesto_y_patrimonio():
+    from prestamos.core.calculo import FORMULA_MENSUAL, redondear
+    from prestamos.core.dashboard import resumen_mensual
+    from prestamos.core.modelos import Cliente, CuotaRegistro, Prestamo
+
+    def construir(fuente, tasa_carrillo, monto, tasa, n):
+        calc, _ = generar_cronograma(
+            monto, tasa, FORMULA_MENSUAL, date(2026, 1, 1), date(2026, 2, 1), n)
+        regs = [CuotaRegistro(numero=c.numero, fecha=c.fecha, dias=c.dias,
+                interes=c.interes, amortizacion=c.amortizacion, cuota=c.cuota,
+                saldo=c.saldo) for c in calc]
+        p = Prestamo(cliente=Cliente("x"), monto=monto, tasa_mensual=tasa,
+                fecha_desembolso=date(2026, 1, 1), fecha_primer_vencimiento=date(2026, 2, 1),
+                num_cuotas=n, formula=FORMULA_MENSUAL, fuente=fuente, tasa_carrillo=tasa_carrillo)
+        p.cuotas = regs
+        return p
+
+    propios = construir("Propios", D("0"), D("10000"), D("0.02"), 6)
+    carrillo = construir("Carrillo Royalti", D("0.005"), D("10000"), D("0.02"), 6)
+
+    # Solo Propios: sin interés de Carrillo y sin impuesto.
+    rp = resumen_mensual([propios])
+    assert rp["totales"]["interes_carrillo"] == D("0.00")
+    assert rp["totales"]["impuesto"] == D("0.00")
+    assert rp["meses"][0]["saldo_pendiente"] == D("10000.00")
+    assert rp["meses"][-1]["saldo_pendiente"] == D("0.00")
+
+    # Con Carrillo: hay interés de Carrillo y el impuesto es 5% de mi parte del Carrillo.
+    rb = resumen_mensual([propios, carrillo])
+    assert rb["totales"]["interes_carrillo"] > 0
+    mio_carrillo = rb["totales"]["interes_mio"] - rp["totales"]["interes_mio"]
+    assert abs(rb["totales"]["impuesto"] - redondear(mio_carrillo * D("0.05"))) <= D("0.03")
+    assert rb["meses"][0]["saldo_pendiente"] == D("20000.00")
+
+
 if __name__ == "__main__":
     cuotas, cuota = _caso_obligatorio()
     print("Cuota fija:", cuota, " Total:", total_a_pagar(cuotas))
