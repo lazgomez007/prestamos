@@ -112,11 +112,11 @@ class Repositorio:
         creado = (p.creado_en or date.today()).isoformat()
         cur = self.con.execute(
             """INSERT INTO prestamos
-               (cliente_id, monto, tasa_mensual, formula, fecha_desembolso,
+               (cliente_id, monto, tasa_mensual, formula, fuente, fecha_desembolso,
                 fecha_primer_vencimiento, num_cuotas, notas, creado_en)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                cliente_id, str(p.monto), str(p.tasa_mensual), p.formula,
+                cliente_id, str(p.monto), str(p.tasa_mensual), p.formula, p.fuente,
                 p.fecha_desembolso.isoformat(), p.fecha_primer_vencimiento.isoformat(),
                 p.num_cuotas, p.notas, creado,
             ),
@@ -131,11 +131,11 @@ class Repositorio:
         self._guardar_cliente(p.cliente)
         self.con.execute(
             """UPDATE prestamos
-               SET cliente_id=?, monto=?, tasa_mensual=?, formula=?,
+               SET cliente_id=?, monto=?, tasa_mensual=?, formula=?, fuente=?,
                    fecha_desembolso=?, fecha_primer_vencimiento=?, num_cuotas=?,
                    notas=? WHERE id=?""",
             (
-                p.cliente.id, str(p.monto), str(p.tasa_mensual), p.formula,
+                p.cliente.id, str(p.monto), str(p.tasa_mensual), p.formula, p.fuente,
                 p.fecha_desembolso.isoformat(), p.fecha_primer_vencimiento.isoformat(),
                 p.num_cuotas, p.notas, p.id,
             ),
@@ -166,6 +166,7 @@ class Repositorio:
         p = Prestamo(
             id=f["id"], cliente=cliente, monto=_d(f["monto"]),
             tasa_mensual=_d(f["tasa_mensual"]), formula=f["formula"],
+            fuente=f["fuente"],
             fecha_desembolso=_fecha(f["fecha_desembolso"]),
             fecha_primer_vencimiento=_fecha(f["fecha_primer_vencimiento"]),
             num_cuotas=f["num_cuotas"], notas=f["notas"],

@@ -19,7 +19,7 @@ from ..core.calculo import (
     total_a_pagar,
     total_interes,
 )
-from ..core.modelos import Cliente, Prestamo
+from ..core.modelos import FUENTE_PROPIOS, FUENTES, Cliente, Prestamo
 from ..core.simulacion import simular_ampliacion
 from ..datos.repositorio import Repositorio
 from ..exportar.excel import exportar_cronograma
@@ -113,6 +113,7 @@ def _prestamo_resumen(p: Prestamo) -> dict:
         "monto": _m(p.monto),
         "tasa_mensual_pct": str((p.tasa_mensual * 100).normalize()),
         "formula": p.formula,
+        "fuente": p.fuente,
         "num_cuotas": p.num_cuotas,
         "estado": p.estado,
     }
@@ -128,6 +129,7 @@ def _prestamo_detalle(p: Prestamo) -> dict:
         "monto": _m(p.monto),
         "tasa_mensual_pct": str((p.tasa_mensual * 100).normalize()),
         "formula": p.formula,
+        "fuente": p.fuente,
         "fecha_desembolso": p.fecha_desembolso.isoformat(),
         "fecha_primer_vencimiento": p.fecha_primer_vencimiento.isoformat(),
         "num_cuotas": p.num_cuotas,
@@ -167,6 +169,7 @@ def _prestamo_desde_payload(data: dict, base: Prestamo | None = None) -> Prestam
     p.monto = _dec(data["monto"])
     p.tasa_mensual = _pct_a_fraccion(data["tasa_mensual_pct"])
     p.formula = formula
+    p.fuente = (data.get("fuente") or FUENTE_PROPIOS).strip() or FUENTE_PROPIOS
     p.fecha_desembolso = _fecha(data["fecha_desembolso"])
     p.fecha_primer_vencimiento = _fecha(data["fecha_primer_vencimiento"])
     p.num_cuotas = int(data["num_cuotas"])
@@ -201,6 +204,11 @@ def set_pref(clave: str, data: dict = Body(...)):
         return {"ok": True}
     finally:
         repo.cerrar()
+
+
+@app.get("/api/fuentes")
+def fuentes():
+    return {"fuentes": FUENTES}
 
 
 @app.get("/api/prestamos")

@@ -11,6 +11,10 @@ ESTADO_AL_DIA = "Al día"
 ESTADO_ATRASADO = "Atrasado"
 ESTADO_PAGADO = "Pagado"
 
+# Fuente / entidad que origina el préstamo.
+FUENTE_PROPIOS = "Propios"
+FUENTES = [FUENTE_PROPIOS, "Carrillo Royalti", "Prestamype"]
+
 
 @dataclass
 class Cliente:
@@ -53,6 +57,7 @@ class Prestamo:
     fecha_primer_vencimiento: date
     num_cuotas: int
     formula: str = FORMULA_EFECTIVA
+    fuente: str = FUENTE_PROPIOS
     notas: str = ""
     estado: str = ESTADO_AL_DIA
     creado_en: date | None = None

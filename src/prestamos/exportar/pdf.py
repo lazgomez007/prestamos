@@ -82,6 +82,7 @@ def exportar_estado_cuenta(
         celda("Teléfono", prestamo.cliente.telefono or "—")
         + celda("Tasa mensual", f"{float(prestamo.tasa_mensual) * 100:.4f}%"),
         celda("Email", prestamo.cliente.email or "—") + celda("Fórmula de interés", formula),
+        celda("Fuente / Entidad", prestamo.fuente) + celda("Estado", prestamo.estado),
         celda("Fecha de desembolso", _fecha(prestamo.fecha_desembolso))
         + celda("Primer vencimiento", _fecha(prestamo.fecha_primer_vencimiento)),
         celda("N° de cuotas", len(cuotas)) + celda("Emitido", _fecha(datetime.now().date())),

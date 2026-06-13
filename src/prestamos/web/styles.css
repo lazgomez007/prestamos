@@ -160,6 +160,20 @@ body {
 .insignia.atrasado { background: var(--rojo-bg); color: var(--rojo); }
 .insignia.pagado { background: var(--verde-bg); color: var(--verde); }
 
+/* ===== Chip de fuente / entidad ===== */
+.chip-fuente {
+  display: inline-block; margin-top: 8px;
+  font-size: .7rem; font-weight: 650;
+  padding: 2px 9px; border-radius: 100px;
+  background: var(--bg-suave); color: var(--texto-suave);
+  border: 1px solid var(--borde);
+}
+.chip-fuente.fuente-propios { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
+.chip-fuente.fuente-carrillo-royalti { background: #efe6ff; color: #6b3fc0; border-color: transparent; }
+.chip-fuente.fuente-prestamype { background: #fde9d6; color: #b5651d; border-color: transparent; }
+[data-theme="dark"] .chip-fuente.fuente-carrillo-royalti { background: #2c2150; color: #c4a8ff; }
+[data-theme="dark"] .chip-fuente.fuente-prestamype { background: #3a2a17; color: #f0b277; }
+
 /* ===== Panel de detalle ===== */
 .panel-detalle {
   background: var(--bg-panel);

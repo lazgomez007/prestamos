@@ -1,7 +1,16 @@
 "use strict";
 
 /* ===== Estado ===== */
-const estado = { prestamos: [], actual: null, tab: "crono", filtro: "" };
+const estado = {
+  prestamos: [], actual: null, tab: "crono",
+  filtro: "", filtroFuente: "", fuentes: ["Propios"],
+};
+
+function slugFuente(f) {
+  const sinAcentos = (f || "").toLowerCase().normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "");
+  return "fuente-" + sinAcentos.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
 
 /* ===== Utilidades ===== */
 const $ = (sel) => document.querySelector(sel);
@@ -86,9 +95,12 @@ async function cargarLista(seleccionar) {
 function renderLista() {
   const cont = $("#lista");
   const f = estado.filtro.toLowerCase();
-  const lista = estado.prestamos.filter((p) => p.cliente.toLowerCase().includes(f));
+  const lista = estado.prestamos.filter(
+    (p) => p.cliente.toLowerCase().includes(f)
+      && (!estado.filtroFuente || p.fuente === estado.filtroFuente)
+  );
   if (!lista.length) {
-    cont.innerHTML = `<p style="color:var(--texto-suave);padding:10px;text-align:center;font-size:.9rem">Sin préstamos todavía.</p>`;
+    cont.innerHTML = `<p style="color:var(--texto-suave);padding:10px;text-align:center;font-size:.9rem">Sin préstamos para mostrar.</p>`;
     return;
   }
   cont.innerHTML = lista
@@ -101,12 +113,20 @@ function renderLista() {
           <span class="insignia ${clase}">${escapar(p.estado)}</span>
         </div>
         <div class="tarjeta-monto">Préstamo ${p.id} · ${fmtMoneda(p.monto)} · ${escapar(p.tasa_mensual_pct)}% mensual</div>
+        <div class="chip-fuente ${slugFuente(p.fuente)}">${escapar(p.fuente)}</div>
       </div>`;
     })
     .join("");
   cont.querySelectorAll(".tarjeta").forEach((t) =>
     t.addEventListener("click", () => abrirPrestamo(Number(t.dataset.id)))
   );
+}
+
+function poblarFiltroFuente() {
+  const sel = $("#filtro-fuente");
+  const opciones = ['<option value="">Todas las fuentes</option>']
+    .concat(estado.fuentes.map((f) => `<option value="${escapar(f)}">${escapar(f)}</option>`));
+  sel.innerHTML = opciones.join("");
 }
 
 /* ===== Detalle ===== */
@@ -128,6 +148,7 @@ function renderDetalle() {
       <div class="detalle-titulo">
         <h2>Préstamo ${p.id} — ${escapar(p.cliente.nombre)}</h2>
         <span class="insignia ${claseEstado}">${escapar(p.estado)}</span>
+        <span class="chip-fuente ${slugFuente(p.fuente)}">${escapar(p.fuente)}</span>
       </div>
       <div class="detalle-sub">${fmtMoneda(p.monto)} · ${escapar(p.tasa_mensual_pct)}% mensual · Fórmula ${formulaTxt} · ${p.num_cuotas} cuotas</div>
       <div class="detalle-botones">
@@ -241,6 +262,7 @@ function vistaDatos(p) {
     <div class="dato"><div class="etq">Monto</div><div class="val">${fmtMoneda(p.monto)}</div></div>
     <div class="dato"><div class="etq">Tasa mensual</div><div class="val">${escapar(p.tasa_mensual_pct)}%</div></div>
     <div class="dato"><div class="etq">Fórmula de interés</div><div class="val">${p.formula === "B" ? "B (simple)" : "A (efectiva)"}</div></div>
+    <div class="dato"><div class="etq">Fuente / Entidad</div><div class="val">${escapar(p.fuente)}</div></div>
     <div class="dato"><div class="etq">Fecha de desembolso</div><div class="val">${fmtFecha(p.fecha_desembolso)}</div></div>
     <div class="dato"><div class="etq">Primer vencimiento</div><div class="val">${fmtFecha(p.fecha_primer_vencimiento)}</div></div>
     <div class="dato"><div class="etq">N° de cuotas</div><div class="val">${p.num_cuotas}</div></div>
@@ -300,6 +322,11 @@ function abrirFormulario(p) {
             <option value="B"${e.formula === "B" ? " selected" : ""}>B — simple (tasa/30)</option>
           </select>
         </div>
+        <div class="campo"><label>Fuente / Entidad</label>
+          <select id="f-fuente">
+            ${estado.fuentes.map((fu) => `<option value="${escapar(fu)}"${(e.fuente || "Propios") === fu ? " selected" : ""}>${escapar(fu)}</option>`).join("")}
+          </select>
+        </div>
         <div class="campo"><label>Fecha de desembolso</label><input id="f-desemb" type="date" value="${e.fecha_desembolso || hoy}"></div>
         <div class="campo"><label>Primer vencimiento</label><input id="f-venc" type="date" value="${e.fecha_primer_vencimiento || ""}"><span class="ayuda">Tú la eliges; puede ser menos de un mes.</span></div>
         <div class="campo"><label>N° de cuotas</label><input id="f-cuotas" type="number" min="1" step="1" value="${e.num_cuotas || 12}"></div>
@@ -335,6 +362,7 @@ function leerFormulario() {
     monto: $("#f-monto").value,
     tasa_mensual_pct: $("#f-tasa").value,
     formula: $("#f-formula").value,
+    fuente: $("#f-fuente").value,
     fecha_desembolso: $("#f-desemb").value,
     fecha_primer_vencimiento: $("#f-venc").value,
     num_cuotas: $("#f-cuotas").value,
@@ -478,12 +506,15 @@ async function eliminar(p) {
 }
 
 /* ===== Arranque ===== */
-function init() {
+async function init() {
   $("#btn-nuevo").addEventListener("click", () => abrirFormulario(null));
   $("#buscar").addEventListener("input", (e) => { estado.filtro = e.target.value; renderLista(); });
+  $("#filtro-fuente").addEventListener("change", (e) => { estado.filtroFuente = e.target.value; renderLista(); });
   $("#modal-fondo").addEventListener("click", (e) => { if (e.target.id === "modal-fondo") cerrarModal(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarModal(); });
   initTema();
+  try { estado.fuentes = (await api("GET", "/api/fuentes")).fuentes; } catch (_) {}
+  poblarFiltroFuente();
   cargarLista();
 }
 document.addEventListener("DOMContentLoaded", init);
