@@ -83,6 +83,12 @@ def test_flujo_completo():
     assert "spreadsheetml" in r.headers["content-type"]
     assert len(r.content) > 2000
 
+    # Exportar PDF (estado de cuenta)
+    r = cliente.get(f"/api/prestamos/{pid}/pdf")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/pdf"
+    assert r.content[:5] == b"%PDF-"
+
 
 def test_formula_simple_y_validaciones():
     caso_b = dict(CASO, formula="B")

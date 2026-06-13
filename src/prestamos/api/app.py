@@ -22,6 +22,7 @@ from ..core.modelos import Cliente, Prestamo
 from ..core.simulacion import simular_ampliacion
 from ..datos.repositorio import Repositorio
 from ..exportar.excel import exportar_cronograma
+from ..exportar.pdf import exportar_estado_cuenta
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
@@ -324,6 +325,24 @@ def exportar_excel(pid: int):
             destino,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             filename=f"cronograma_prestamo_{pid}_{p.cliente.nombre}.xlsx",
+        )
+    finally:
+        repo.cerrar()
+
+
+@app.get("/api/prestamos/{pid}/pdf")
+def exportar_pdf(pid: int):
+    repo = Repositorio()
+    try:
+        p = repo.obtener_prestamo(pid)
+        if not p:
+            raise HTTPException(404, "Préstamo no encontrado.")
+        destino = Path(tempfile.gettempdir()) / f"estado_cuenta_prestamo_{pid}.pdf"
+        exportar_estado_cuenta(p, destino)
+        return FileResponse(
+            destino,
+            media_type="application/pdf",
+            filename=f"estado_cuenta_prestamo_{pid}_{p.cliente.nombre}.pdf",
         )
     finally:
         repo.cerrar()

@@ -132,6 +132,7 @@ function renderDetalle() {
         <button class="btn btn-sm" id="d-editar">✏️ Editar</button>
         <button class="btn btn-sm" id="d-simular">📈 Simular ampliación</button>
         <button class="btn btn-sm" id="d-excel">📊 Exportar Excel</button>
+        <button class="btn btn-sm" id="d-pdf">📄 Exportar PDF</button>
         <button class="btn btn-sm btn-peligro" id="d-eliminar">🗑️ Eliminar</button>
       </div>
       <div class="resumen-cards">
@@ -152,6 +153,7 @@ function renderDetalle() {
   $("#d-editar").onclick = () => abrirFormulario(p);
   $("#d-simular").onclick = () => abrirSimulacion(p);
   $("#d-excel").onclick = () => { descargar(`/api/prestamos/${p.id}/excel`); avisar("Descargando Excel..."); };
+  $("#d-pdf").onclick = () => { descargar(`/api/prestamos/${p.id}/pdf`); avisar("Descargando PDF..."); };
   $("#d-eliminar").onclick = () => eliminar(p);
   $("#detalle").querySelectorAll(".tab").forEach((t) =>
     t.addEventListener("click", () => { estado.tab = t.dataset.tab; pintarTab(); })
