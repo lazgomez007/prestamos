@@ -95,6 +95,18 @@ def test_flujo_completo():
     assert ruta_pdf.read_bytes()[:5] == b"%PDF-"
 
 
+def test_editar_preserva_pagos():
+    # Pagar una cuota, luego editar términos (regenera) y verificar que sigue pagada.
+    pid = cliente.post("/api/prestamos", json=CASO).json()["id"]
+    p = cliente.get(f"/api/prestamos/{pid}").json()
+    cliente.post(f"/api/prestamos/{pid}/pagos",
+                 json={"cuota_id": p["cuotas"][0]["id"], "pagada": True})
+    r = cliente.put(f"/api/prestamos/{pid}", json=dict(CASO, tasa_mensual_pct=2.0))
+    assert r.status_code == 200
+    assert r.json()["cuotas"][0]["pagada"] is True
+    assert r.json()["resumen"]["cuotas_pagadas"] == 1
+
+
 def test_formula_simple_y_validaciones():
     caso_b = dict(CASO, formula="B")
     assert cliente.post("/api/calcular", json=caso_b).status_code == 200

@@ -144,8 +144,16 @@ class Repositorio:
             ),
         )
         if regenerar:
+            # Preservar el estado de pago por número de cuota al regenerar.
+            previos = {
+                c.numero: (c.pagada, c.fecha_pago) for c in self._cuotas_de(p.id)
+            }
             self.con.execute("DELETE FROM cuotas WHERE prestamo_id=?", (p.id,))
-            self._insertar_cuotas(p.id, self._generar_registros(p))
+            registros = self._generar_registros(p)
+            for r in registros:
+                if r.numero in previos:
+                    r.pagada, r.fecha_pago = previos[r.numero]
+            self._insertar_cuotas(p.id, registros)
             p.cuotas = self._cuotas_de(p.id)
         self.con.commit()
 
