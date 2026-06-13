@@ -600,7 +600,7 @@ function renderDashboard(data) {
     const previas = meses.filter((m) => m.mes <= hoy);
     actual = previas.length ? previas[previas.length - 1] : (meses[0] || null);
   }
-  const a = actual || { interes_mio: "0", amortizacion: "0", impuesto: "0", saldo_pendiente: "0" };
+  const a = actual || { interes_mio: "0", amortizacion: "0", impuesto: "0", saldo_pendiente: "0", falta_cobrar: "0" };
   const mesActual = actual ? actual.mes : "";
 
   const maxInt = Math.max(1, ...meses.map((m) => Number(m.interes_mio)));
@@ -621,6 +621,7 @@ function renderDashboard(data) {
         <td>${fmtMoneda(m.amortizacion)}</td>
         <td>${fmtMoneda(m.impuesto)}</td>
         <td>${fmtMoneda(m.saldo_pendiente)}</td>
+        <td>${fmtMoneda(m.falta_cobrar)}</td>
       </tr>`)
     .join("");
 
@@ -632,6 +633,7 @@ function renderDashboard(data) {
     </div>
     <div class="dash-cards">
       <div class="dcard patri"><div class="etq">🏦 Patrimonio (capital pendiente)</div><div class="val">${fmtMoneda(a.saldo_pendiente)}</div></div>
+      <div class="dcard"><div class="etq">💵 Falta cobrar (capital + interés)</div><div class="val">${fmtMoneda(a.falta_cobrar)}</div></div>
       <div class="dcard"><div class="etq">📅 Mi interés (este mes)</div><div class="val">${fmtMoneda(a.interes_mio)}</div></div>
       <div class="dcard"><div class="etq">🔁 Amortización (este mes)</div><div class="val">${fmtMoneda(a.amortizacion)}</div></div>
       <div class="dcard imp"><div class="etq">🧾 Impuesto a pagar (este mes, 5%)</div><div class="val">${fmtMoneda(a.impuesto)}</div></div>
@@ -649,7 +651,7 @@ function renderDashboard(data) {
       <table class="crono">
         <thead><tr>
           <th class="izq">Mes</th><th>Mi interés</th><th>Amortización</th>
-          <th>Impuesto (5%)</th><th>Saldo pendiente</th>
+          <th>Impuesto (5%)</th><th>Capital pendiente</th><th>Falta cobrar</th>
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>

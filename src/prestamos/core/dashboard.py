@@ -113,6 +113,13 @@ def resumen_mensual(
         tot["impuesto"] += impuesto
         mes = _mes_siguiente(mes)
 
+    # "Falta cobrar" = capital + intereses pendientes desde ese mes en adelante
+    # (suma de las cuotas futuras, incluido el balón). Suma por sufijo.
+    acum = Decimal(0)
+    for f in reversed(filas):
+        acum += f["interes_mio"] + f["interes_carrillo"] + f["amortizacion"]
+        f["falta_cobrar"] = redondear(acum)
+
     return {
         "meses": filas,
         "totales": {
