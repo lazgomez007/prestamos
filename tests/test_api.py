@@ -11,6 +11,9 @@ _DB = Path(tempfile.gettempdir()) / "_test_api_prestamos.db"
 if _DB.exists():
     _DB.unlink()
 os.environ["PRESTAMOS_DB"] = str(_DB)
+# Exportaciones a una carpeta temporal y sin abrir archivos durante las pruebas.
+os.environ["PRESTAMOS_EXPORT_DIR"] = tempfile.mkdtemp(prefix="_test_export_")
+os.environ["PRESTAMOS_NO_ABRIR"] = "1"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -77,17 +80,19 @@ def test_flujo_completo():
     assert r.json()["num_cuotas"] == 18
     assert len(r.json()["ampliaciones"]) == 1
 
-    # Exportar Excel
+    # Exportar Excel: guarda el archivo y devuelve la ruta
     r = cliente.get(f"/api/prestamos/{pid}/excel")
     assert r.status_code == 200
-    assert "spreadsheetml" in r.headers["content-type"]
-    assert len(r.content) > 2000
+    ruta_xlsx = Path(r.json()["ruta"])
+    assert ruta_xlsx.suffix == ".xlsx" and ruta_xlsx.exists()
+    assert ruta_xlsx.stat().st_size > 2000
 
     # Exportar PDF (estado de cuenta)
     r = cliente.get(f"/api/prestamos/{pid}/pdf")
     assert r.status_code == 200
-    assert r.headers["content-type"] == "application/pdf"
-    assert r.content[:5] == b"%PDF-"
+    ruta_pdf = Path(r.json()["ruta"])
+    assert ruta_pdf.suffix == ".pdf" and ruta_pdf.exists()
+    assert ruta_pdf.read_bytes()[:5] == b"%PDF-"
 
 
 def test_formula_simple_y_validaciones():

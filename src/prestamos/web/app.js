@@ -41,13 +41,15 @@ function avisar(msg, esError = false) {
   avisoTimer = setTimeout(() => el.classList.add("oculto"), 3200);
 }
 
-function descargar(url) {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+async function exportarArchivo(url, etiqueta) {
+  try {
+    avisar(`Generando ${etiqueta}...`);
+    const r = await api("GET", url);
+    avisar(`${etiqueta} guardado en Descargas (se abrió automáticamente).`);
+    console.log("Archivo guardado en:", r.ruta);
+  } catch (err) {
+    avisar(err.message, true);
+  }
 }
 
 /* ===== Tema (claro / oscuro) ===== */
@@ -152,8 +154,8 @@ function renderDetalle() {
 
   $("#d-editar").onclick = () => abrirFormulario(p);
   $("#d-simular").onclick = () => abrirSimulacion(p);
-  $("#d-excel").onclick = () => { descargar(`/api/prestamos/${p.id}/excel`); avisar("Descargando Excel..."); };
-  $("#d-pdf").onclick = () => { descargar(`/api/prestamos/${p.id}/pdf`); avisar("Descargando PDF..."); };
+  $("#d-excel").onclick = () => exportarArchivo(`/api/prestamos/${p.id}/excel`, "Excel");
+  $("#d-pdf").onclick = () => exportarArchivo(`/api/prestamos/${p.id}/pdf`, "PDF");
   $("#d-eliminar").onclick = () => eliminar(p);
   $("#detalle").querySelectorAll(".tab").forEach((t) =>
     t.addEventListener("click", () => { estado.tab = t.dataset.tab; pintarTab(); })

@@ -1,13 +1,14 @@
 """API REST local (FastAPI) que conecta el frontend web con el núcleo Python."""
 from __future__ import annotations
 
-import tempfile
-from datetime import date
+import os
+import re
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..core.calculo import (
@@ -25,6 +26,31 @@ from ..exportar.excel import exportar_cronograma
 from ..exportar.pdf import exportar_estado_cuenta
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
+
+# --- Exportación de archivos a disco (app local) ----------------------------
+def _slug(nombre: str) -> str:
+    limpio = re.sub(r"[^A-Za-z0-9_-]+", "_", nombre or "").strip("_")
+    return limpio or "cliente"
+
+
+def _carpeta_descargas() -> Path:
+    """Carpeta donde se guardan los archivos exportados (Descargas por defecto)."""
+    env = os.environ.get("PRESTAMOS_EXPORT_DIR")
+    if env:
+        return Path(env)
+    descargas = Path.home() / "Downloads"
+    return descargas if descargas.exists() else Path.home()
+
+
+def _abrir_archivo(ruta: Path) -> None:
+    """Abre el archivo con la aplicación predeterminada (Windows)."""
+    if os.environ.get("PRESTAMOS_NO_ABRIR"):
+        return
+    try:
+        os.startfile(str(ruta))  # type: ignore[attr-defined]
+    except Exception:
+        pass
 
 
 # --- Utilidades de conversión ----------------------------------------------
@@ -319,13 +345,11 @@ def exportar_excel(pid: int):
         p = repo.obtener_prestamo(pid)
         if not p:
             raise HTTPException(404, "Préstamo no encontrado.")
-        destino = Path(tempfile.gettempdir()) / f"cronograma_prestamo_{pid}.xlsx"
+        sello = datetime.now().strftime("%Y%m%d_%H%M%S")
+        destino = _carpeta_descargas() / f"cronograma_{pid}_{_slug(p.cliente.nombre)}_{sello}.xlsx"
         exportar_cronograma(p, destino)
-        return FileResponse(
-            destino,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            filename=f"cronograma_prestamo_{pid}_{p.cliente.nombre}.xlsx",
-        )
+        _abrir_archivo(destino)
+        return {"ok": True, "ruta": str(destino)}
     finally:
         repo.cerrar()
 
@@ -337,13 +361,11 @@ def exportar_pdf(pid: int):
         p = repo.obtener_prestamo(pid)
         if not p:
             raise HTTPException(404, "Préstamo no encontrado.")
-        destino = Path(tempfile.gettempdir()) / f"estado_cuenta_prestamo_{pid}.pdf"
+        sello = datetime.now().strftime("%Y%m%d_%H%M%S")
+        destino = _carpeta_descargas() / f"estado_cuenta_{pid}_{_slug(p.cliente.nombre)}_{sello}.pdf"
         exportar_estado_cuenta(p, destino)
-        return FileResponse(
-            destino,
-            media_type="application/pdf",
-            filename=f"estado_cuenta_prestamo_{pid}_{p.cliente.nombre}.pdf",
-        )
+        _abrir_archivo(destino)
+        return {"ok": True, "ruta": str(destino)}
     finally:
         repo.cerrar()
 
