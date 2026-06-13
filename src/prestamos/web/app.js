@@ -6,6 +6,10 @@ const estado = {
   filtro: "", filtroFuente: "", fuentes: ["Propios"],
 };
 
+function nombreFormula(f) {
+  return { A: "A (efectiva)", B: "B (simple)", C: "C (mensual fija)" }[f] || "A (efectiva)";
+}
+
 function slugFuente(f) {
   const sinAcentos = (f || "").toLowerCase().normalize("NFD")
     .replace(new RegExp("[\\u0300-\\u036f]", "g"), "");
@@ -141,7 +145,7 @@ function renderDetalle() {
   if (!p) return;
   const r = p.resumen;
   const claseEstado = { "Al día": "aldia", Atrasado: "atrasado", Pagado: "pagado" }[p.estado] || "aldia";
-  const formulaTxt = p.formula === "B" ? "B (simple)" : "A (efectiva)";
+  const formulaTxt = nombreFormula(p.formula);
 
   $("#detalle").innerHTML = `
     <div class="detalle-cabecera">
@@ -280,7 +284,7 @@ function vistaDatos(p) {
     <div class="dato"><div class="etq">Email</div><div class="val">${escapar(p.cliente.email || "—")}</div></div>
     <div class="dato"><div class="etq">Monto</div><div class="val">${fmtMoneda(p.monto)}</div></div>
     <div class="dato"><div class="etq">Tasa mensual</div><div class="val">${escapar(p.tasa_mensual_pct)}%</div></div>
-    <div class="dato"><div class="etq">Fórmula de interés</div><div class="val">${p.formula === "B" ? "B (simple)" : "A (efectiva)"}</div></div>
+    <div class="dato"><div class="etq">Fórmula de interés</div><div class="val">${nombreFormula(p.formula)}</div></div>
     <div class="dato"><div class="etq">Fuente / Entidad</div><div class="val">${escapar(p.fuente)}</div></div>
     ${Number(p.tasa_carrillo_pct) > 0 ? `<div class="dato"><div class="etq">Tasa mensual de Carrillo</div><div class="val">${escapar(p.tasa_carrillo_pct)}%</div></div>` : ""}
     <div class="dato"><div class="etq">Fecha de desembolso</div><div class="val">${fmtFecha(p.fecha_desembolso)}</div></div>
@@ -339,8 +343,9 @@ function abrirFormulario(p) {
         <div class="campo"><label>Tasa mensual (%)</label><input id="f-tasa" type="number" step="0.0001" min="0" value="${e.tasa_mensual_pct || ""}"><span class="ayuda">Ej.: 1.4602</span></div>
         <div class="campo"><label>Fórmula de interés</label>
           <select id="f-formula">
-            <option value="A"${e.formula === "B" ? "" : " selected"}>A — efectiva (por defecto)</option>
-            <option value="B"${e.formula === "B" ? " selected" : ""}>B — simple (tasa/30)</option>
+            <option value="A"${e.formula === "A" || !e.formula ? " selected" : ""}>A — efectiva (por días)</option>
+            <option value="B"${e.formula === "B" ? " selected" : ""}>B — simple (tasa/30 × días)</option>
+            <option value="C"${e.formula === "C" ? " selected" : ""}>C — mensual fija (sin días)</option>
           </select>
         </div>
         <div class="campo"><label>Fuente / Entidad</label>

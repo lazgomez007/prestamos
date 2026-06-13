@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..core.calculo import (
     FORMULA_EFECTIVA,
+    FORMULA_MENSUAL,
     FORMULA_SIMPLE,
     desglose_carrillo,
     generar_cronograma,
@@ -171,8 +172,8 @@ def _prestamo_detalle(p: Prestamo) -> dict:
 
 def _prestamo_desde_payload(data: dict, base: Prestamo | None = None) -> Prestamo:
     formula = data.get("formula", FORMULA_EFECTIVA)
-    if formula not in (FORMULA_EFECTIVA, FORMULA_SIMPLE):
-        raise HTTPException(400, "Fórmula debe ser 'A' o 'B'.")
+    if formula not in (FORMULA_EFECTIVA, FORMULA_SIMPLE, FORMULA_MENSUAL):
+        raise HTTPException(400, "Fórmula debe ser 'A', 'B' o 'C'.")
     cliente_data = data.get("cliente", {})
     if not cliente_data.get("nombre", "").strip():
         raise HTTPException(400, "El nombre del cliente es obligatorio.")

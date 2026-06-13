@@ -121,6 +121,27 @@ def test_capital_final_invalido():
         )
 
 
+def test_formula_mensual_fija_caso_carrillo_real():
+    # Caso real CAr_56: 56,500 al 2.38% mensual, 36 cuotas, fórmula C (mensual fija).
+    from prestamos.core.calculo import FORMULA_MENSUAL, desglose_carrillo
+    cuotas, cuota = generar_cronograma(
+        monto=D("56500"), tasa_mensual=D("0.0238"), formula=FORMULA_MENSUAL,
+        fecha_desembolso=date(2026, 1, 1), fecha_primer_vencimiento=date(2026, 2, 1),
+        num_cuotas=36,
+    )
+    assert cuota == D("2354.17")
+    c1 = cuotas[0]
+    assert c1.interes == D("1344.70")
+    assert c1.amortizacion == D("1009.47")
+    assert c1.saldo == D("55490.53")
+    assert cuotas[-1].saldo == D("0.00")
+    assert abs(total_a_pagar(cuotas) - D("84750.10")) <= D("0.05")
+    # Carrillo a 0.66% (= 2.38% del préstamo - 1.72% del inversionista).
+    pares = desglose_carrillo(D("56500"), D("0.0066"), FORMULA_MENSUAL, cuotas)
+    assert pares[0][0] == D("372.90")
+    assert abs(sum((ic for ic, _ in pares), D("0")) - D("7834.06")) <= D("0.05")
+
+
 def test_desglose_carrillo_suma_al_interes():
     from prestamos.core.calculo import desglose_carrillo
     cuotas, _ = generar_cronograma(

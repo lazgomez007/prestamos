@@ -35,6 +35,7 @@ DIAS_MES_SIMPLE = Decimal(30)
 
 FORMULA_EFECTIVA = "A"
 FORMULA_SIMPLE = "B"
+FORMULA_MENSUAL = "C"   # mensual fija: interés = saldo * tasa_mensual (sin días)
 
 
 def redondear(valor: Decimal) -> Decimal:
@@ -56,6 +57,21 @@ def tasa_por_dia(tasa_mensual: Decimal, formula: str) -> Decimal:
     uno = Decimal(1)
     anual = tasa_anual_efectiva(tasa_mensual)
     return ((uno + anual).ln() / DIAS_ANIO).exp() - uno
+
+
+def tasas_de_periodo(
+    tasa_mensual: Decimal, formula: str, dias_periodos: list[int]
+) -> list[Decimal]:
+    """Tasa aplicada en cada periodo, según la fórmula.
+
+    - A / B: tasa por día * días reales del periodo.
+    - C (mensual fija): la tasa mensual completa por periodo, sin contar días.
+    """
+    tasa_mensual = Decimal(tasa_mensual)
+    if formula == FORMULA_MENSUAL:
+        return [tasa_mensual for _ in dias_periodos]
+    diaria = tasa_por_dia(tasa_mensual, formula)
+    return [diaria * Decimal(d) for d in dias_periodos]
 
 
 # --- Fechas -----------------------------------------------------------------
@@ -137,8 +153,7 @@ def construir_cronograma(
     if any(d <= 0 for d in dias_periodos):
         raise ValueError("Las fechas deben ser crecientes (días de periodo > 0).")
 
-    diaria = tasa_por_dia(tasa_mensual, formula)
-    tasas_periodo = [diaria * Decimal(d) for d in dias_periodos]
+    tasas_periodo = tasas_de_periodo(tasa_mensual, formula, dias_periodos)
     n = len(dias_periodos)
     cuota_fija = calcular_cuota_fija(saldo_inicial, tasas_periodo, capital_final)
 
@@ -189,14 +204,16 @@ def desglose_carrillo(
 ) -> list[tuple[Decimal, Decimal]]:
     """Reparte el interés de cada cuota entre Carrillo y el prestamista.
 
-    El interés de Carrillo se calcula igual que el del préstamo pero con su tasa
-    mensual, sobre el mismo saldo y días. Devuelve [(interes_carrillo, interes_mio)].
+    El interés de Carrillo se calcula igual que el del préstamo (misma fórmula)
+    pero con su tasa mensual, sobre el mismo saldo. Devuelve
+    [(interes_carrillo, interes_mio)].
     """
-    diaria = tasa_por_dia(tasa_carrillo, formula)
+    dias = [c.dias for c in cuotas]
+    tasas = tasas_de_periodo(tasa_carrillo, formula, dias)
     saldo_prev = Decimal(saldo_inicial)
     salida: list[tuple[Decimal, Decimal]] = []
-    for c in cuotas:
-        ic = redondear(saldo_prev * diaria * Decimal(c.dias))
+    for c, r in zip(cuotas, tasas):
+        ic = redondear(saldo_prev * r)
         if ic > c.interes:  # no puede exceder el interés total cobrado
             ic = c.interes
         salida.append((ic, redondear(c.interes - ic)))
