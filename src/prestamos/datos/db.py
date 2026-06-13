@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS prestamos (
     formula                  TEXT NOT NULL DEFAULT 'A',
     fuente                   TEXT NOT NULL DEFAULT 'Propios',
     capital_final            TEXT NOT NULL DEFAULT '0',
+    tasa_carrillo            TEXT NOT NULL DEFAULT '0',
     fecha_desembolso         TEXT NOT NULL,
     fecha_primer_vencimiento TEXT NOT NULL,
     num_cuotas               INTEGER NOT NULL,
@@ -87,6 +88,7 @@ def _rebuild_prestamos(con: sqlite3.Connection) -> None:
             formula                  TEXT NOT NULL DEFAULT 'A',
             fuente                   TEXT NOT NULL DEFAULT 'Propios',
             capital_final            TEXT NOT NULL DEFAULT '0',
+            tasa_carrillo            TEXT NOT NULL DEFAULT '0',
             fecha_desembolso         TEXT NOT NULL,
             fecha_primer_vencimiento TEXT NOT NULL,
             num_cuotas               INTEGER NOT NULL,
@@ -95,9 +97,11 @@ def _rebuild_prestamos(con: sqlite3.Connection) -> None:
         );
         INSERT INTO prestamos_nuevo
             (id, cliente_id, monto, tasa_mensual, formula, fuente, capital_final,
-             fecha_desembolso, fecha_primer_vencimiento, num_cuotas, notas, creado_en)
+             tasa_carrillo, fecha_desembolso, fecha_primer_vencimiento, num_cuotas,
+             notas, creado_en)
         SELECT id, cliente_id, monto, tasa_mensual, formula, fuente, capital_final,
-               fecha_desembolso, fecha_primer_vencimiento, num_cuotas, notas, creado_en
+               tasa_carrillo, fecha_desembolso, fecha_primer_vencimiento, num_cuotas,
+               notas, creado_en
         FROM prestamos;
         DROP TABLE prestamos;
         ALTER TABLE prestamos_nuevo RENAME TO prestamos;
@@ -117,6 +121,8 @@ def _migrar(con: sqlite3.Connection) -> None:
         con.execute("ALTER TABLE prestamos ADD COLUMN fuente TEXT NOT NULL DEFAULT 'Propios'")
     if "capital_final" not in cols:
         con.execute("ALTER TABLE prestamos ADD COLUMN capital_final TEXT NOT NULL DEFAULT '0'")
+    if "tasa_carrillo" not in cols:
+        con.execute("ALTER TABLE prestamos ADD COLUMN tasa_carrillo TEXT NOT NULL DEFAULT '0'")
     if "fecha_desembolso" not in cols:
         con.execute("ALTER TABLE prestamos ADD COLUMN fecha_desembolso TEXT")
     if "fecha_primer_vencimiento" not in cols:

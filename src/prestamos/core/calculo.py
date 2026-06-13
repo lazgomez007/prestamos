@@ -181,6 +181,29 @@ def generar_cronograma(
     return construir_cronograma(monto, tasa_mensual, formula, fechas, capital_final)
 
 
+def desglose_carrillo(
+    saldo_inicial: Decimal,
+    tasa_carrillo: Decimal,
+    formula: str,
+    cuotas: list[Cuota],
+) -> list[tuple[Decimal, Decimal]]:
+    """Reparte el interés de cada cuota entre Carrillo y el prestamista.
+
+    El interés de Carrillo se calcula igual que el del préstamo pero con su tasa
+    mensual, sobre el mismo saldo y días. Devuelve [(interes_carrillo, interes_mio)].
+    """
+    diaria = tasa_por_dia(tasa_carrillo, formula)
+    saldo_prev = Decimal(saldo_inicial)
+    salida: list[tuple[Decimal, Decimal]] = []
+    for c in cuotas:
+        ic = redondear(saldo_prev * diaria * Decimal(c.dias))
+        if ic > c.interes:  # no puede exceder el interés total cobrado
+            ic = c.interes
+        salida.append((ic, redondear(c.interes - ic)))
+        saldo_prev = c.saldo
+    return salida
+
+
 def total_a_pagar(cuotas: list[Cuota]) -> Decimal:
     return redondear(sum((c.cuota for c in cuotas), Decimal(0)))
 

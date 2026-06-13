@@ -259,6 +259,13 @@ table.crono tfoot tr.fila-total td {
 .totales-resumen .ganancia .ti-val { color: var(--verde); }
 .totales-resumen .capital { background: var(--acento-suave); border-color: transparent; }
 .totales-resumen .capital .ti-val { color: var(--acento); }
+.totales-resumen .carrillo-box { background: #efe6ff; border-color: transparent; }
+.totales-resumen .carrillo-box .ti-val { color: #6b3fc0; }
+[data-theme="dark"] .totales-resumen .carrillo-box { background: #2c2150; }
+[data-theme="dark"] .totales-resumen .carrillo-box .ti-val { color: #c4a8ff; }
+table.crono td.carrillo { color: #6b3fc0; }
+table.crono td.mio { color: var(--verde); }
+[data-theme="dark"] table.crono td.carrillo { color: #c4a8ff; }
 
 /* ===== Datos / notas ===== */
 .datos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 26px; max-width: 640px; }

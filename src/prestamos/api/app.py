@@ -14,12 +14,13 @@ from fastapi.staticfiles import StaticFiles
 from ..core.calculo import (
     FORMULA_EFECTIVA,
     FORMULA_SIMPLE,
+    desglose_carrillo,
     generar_cronograma,
     redondear,
     total_a_pagar,
     total_interes,
 )
-from ..core.modelos import FUENTE_PROPIOS, FUENTES, Cliente, Prestamo
+from ..core.modelos import FUENTE_CARRILLO, FUENTE_PROPIOS, FUENTES, Cliente, Prestamo
 from ..core.simulacion import simular_ampliacion
 from ..datos.repositorio import Repositorio
 from ..exportar.excel import exportar_cronograma
@@ -106,6 +107,22 @@ def _resumen(cuotas) -> dict:
     }
 
 
+def _enriquecer_carrillo(p: Prestamo, cuota_objs, cuota_dicts, resumen: dict) -> None:
+    """Si el préstamo tiene tasa de Carrillo, agrega el desglose del interés
+    (Carrillo / mío) a cada cuota y los totales al resumen."""
+    if not (p.tasa_carrillo and p.tasa_carrillo > 0):
+        return
+    pares = desglose_carrillo(p.monto, p.tasa_carrillo, p.formula, cuota_objs)
+    tot_c, tot_m = Decimal(0), Decimal(0)
+    for cd, (ic, im) in zip(cuota_dicts, pares):
+        cd["interes_carrillo"] = _m(ic)
+        cd["interes_mio"] = _m(im)
+        tot_c += ic
+        tot_m += im
+    resumen["interes_carrillo"] = _m(tot_c)
+    resumen["interes_mio"] = _m(tot_m)
+
+
 def _prestamo_resumen(p: Prestamo) -> dict:
     return {
         "id": p.id,
@@ -120,7 +137,7 @@ def _prestamo_resumen(p: Prestamo) -> dict:
 
 
 def _prestamo_detalle(p: Prestamo) -> dict:
-    return {
+    d = {
         "id": p.id,
         "cliente": {
             "id": p.cliente.id, "nombre": p.cliente.nombre,
@@ -131,6 +148,7 @@ def _prestamo_detalle(p: Prestamo) -> dict:
         "formula": p.formula,
         "fuente": p.fuente,
         "capital_final": _m(p.capital_final),
+        "tasa_carrillo_pct": str((p.tasa_carrillo * 100).normalize()),
         "fecha_desembolso": p.fecha_desembolso.isoformat(),
         "fecha_primer_vencimiento": p.fecha_primer_vencimiento.isoformat(),
         "num_cuotas": p.num_cuotas,
@@ -147,6 +165,8 @@ def _prestamo_detalle(p: Prestamo) -> dict:
         ],
         "resumen": _resumen(p.cuotas),
     }
+    _enriquecer_carrillo(p, p.cuotas, d["cuotas"], d["resumen"])
+    return d
 
 
 def _prestamo_desde_payload(data: dict, base: Prestamo | None = None) -> Prestamo:
@@ -171,6 +191,11 @@ def _prestamo_desde_payload(data: dict, base: Prestamo | None = None) -> Prestam
     p.tasa_mensual = _pct_a_fraccion(data["tasa_mensual_pct"])
     p.formula = formula
     p.fuente = (data.get("fuente") or FUENTE_PROPIOS).strip() or FUENTE_PROPIOS
+    # La tasa de Carrillo solo aplica a préstamos de esa fuente.
+    p.tasa_carrillo = (
+        _pct_a_fraccion(data.get("tasa_carrillo_pct") or 0)
+        if p.fuente == FUENTE_CARRILLO else Decimal(0)
+    )
     p.capital_final = _dec(data.get("capital_final") or 0)
     p.fecha_desembolso = _fecha(data["fecha_desembolso"])
     p.fecha_primer_vencimiento = _fecha(data["fecha_primer_vencimiento"])
@@ -234,11 +259,10 @@ def calcular(data: dict = Body(...)):
         p.monto, p.tasa_mensual, p.formula,
         p.fecha_desembolso, p.fecha_primer_vencimiento, p.num_cuotas, p.capital_final,
     )
-    return {
-        "cuota_fija": _m(cuota),
-        "cuotas": [_cuota_dict(c) for c in cuotas],
-        "resumen": _resumen(cuotas),
-    }
+    dicts = [_cuota_dict(c) for c in cuotas]
+    resumen = _resumen(cuotas)
+    _enriquecer_carrillo(p, cuotas, dicts, resumen)
+    return {"cuota_fija": _m(cuota), "cuotas": dicts, "resumen": resumen}
 
 
 @app.post("/api/prestamos")

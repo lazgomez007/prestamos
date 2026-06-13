@@ -121,6 +121,21 @@ def test_capital_final_invalido():
         )
 
 
+def test_desglose_carrillo_suma_al_interes():
+    from prestamos.core.calculo import desglose_carrillo
+    cuotas, _ = generar_cronograma(
+        monto=D("10000"), tasa_mensual=D("0.02"), formula=FORMULA_EFECTIVA,
+        fecha_desembolso=date(2026, 1, 1), fecha_primer_vencimiento=date(2026, 2, 1),
+        num_cuotas=6,
+    )
+    pares = desglose_carrillo(D("10000"), D("0.012"), FORMULA_EFECTIVA, cuotas)
+    for c, (ic, im) in zip(cuotas, pares):
+        assert ic + im == c.interes        # el reparto suma exacto al interés
+        assert 0 <= ic <= c.interes
+    # Con tasa de Carrillo (1.2%) menor que la del préstamo (2%), su parte es menor.
+    assert pares[0][0] < cuotas[0].interes
+
+
 if __name__ == "__main__":
     cuotas, cuota = _caso_obligatorio()
     print("Cuota fija:", cuota, " Total:", total_a_pagar(cuotas))

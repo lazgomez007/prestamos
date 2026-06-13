@@ -206,6 +206,7 @@ function sumarCampo(cuotas, campo) {
 }
 
 function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
+  const conCarrillo = cuotas.some((c) => c.interes_carrillo !== undefined);
   const filas = cuotas
     .map((c, i) => {
       const pagada = c.pagada ? " pagada" : "";
@@ -213,11 +214,15 @@ function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
       const chk = conPagos
         ? `<td class="centro"><input type="checkbox" class="chk" data-id="${c.id}" ${c.pagada ? "checked" : ""}></td>`
         : "";
+      const carr = conCarrillo
+        ? `<td class="carrillo">${fmtMoneda(c.interes_carrillo || 0)}</td><td class="mio">${fmtMoneda(c.interes_mio || 0)}</td>`
+        : "";
       return `<tr class="${pagada}${corte}">
         <td class="centro">${c.numero}</td>
         <td class="centro">${fmtFecha(c.fecha)}</td>
         <td class="centro">${c.dias}</td>
         <td>${fmtMoneda(c.interes)}</td>
+        ${carr}
         <td>${fmtMoneda(c.amortizacion)}</td>
         <td>${fmtMoneda(c.cuota)}</td>
         <td>${fmtMoneda(c.saldo)}</td>
@@ -229,26 +234,40 @@ function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
   const totInteres = sumarCampo(cuotas, "interes");
   const totAmort = sumarCampo(cuotas, "amortizacion");
   const totCuota = sumarCampo(cuotas, "cuota");
+  const totCarrillo = conCarrillo ? sumarCampo(cuotas, "interes_carrillo") : 0;
+  const totMio = conCarrillo ? sumarCampo(cuotas, "interes_mio") : 0;
+  const pieCarr = conCarrillo
+    ? `<td>${fmtMoneda(totCarrillo)}</td><td>${fmtMoneda(totMio)}</td>`
+    : "";
   const pie = `<tr class="fila-total">
       <td class="izq" colspan="3">Totales</td>
       <td>${fmtMoneda(totInteres)}</td>
+      ${pieCarr}
       <td>${fmtMoneda(totAmort)}</td>
       <td>${fmtMoneda(totCuota)}</td>
       <td></td>
       ${conPagos ? "<td></td>" : ""}
     </tr>`;
 
+  const thCarr = conCarrillo
+    ? '<th>Int. Carrillo</th><th>Mi interés</th>'
+    : "";
+  const resumenCarr = conCarrillo
+    ? `<div class="ti carrillo-box"><span class="ti-etq">🏦 Interés de Carrillo</span><span class="ti-val">${fmtMoneda(totCarrillo)}</span></div>
+       <div class="ti ganancia"><span class="ti-etq">💰 Mi interés</span><span class="ti-val">${fmtMoneda(totMio)}</span></div>`
+    : `<div class="ti ganancia"><span class="ti-etq">💰 Ganancia por intereses</span><span class="ti-val">${fmtMoneda(totInteres)}</span></div>`;
+
   return `<div class="tabla-wrap"><table class="crono">
     <thead><tr>
       <th class="centro">N°</th><th class="centro">Vencimiento</th><th class="centro">N° Días</th>
-      <th>Intereses</th><th>Amortización</th><th>Cuota</th><th>Saldo Pendiente</th>
+      <th>Intereses</th>${thCarr}<th>Amortización</th><th>Cuota</th><th>Saldo Pendiente</th>
       ${conPagos ? '<th class="centro">Pagada</th>' : ""}
     </tr></thead>
     <tbody>${filas}</tbody>
     <tfoot>${pie}</tfoot>
   </table></div>
   <div class="totales-resumen">
-    <div class="ti ganancia"><span class="ti-etq">💰 Ganancia por intereses</span><span class="ti-val">${fmtMoneda(totInteres)}</span></div>
+    ${resumenCarr}
     <div class="ti capital"><span class="ti-etq">🔁 Capital recuperado</span><span class="ti-val">${fmtMoneda(totAmort)}</span></div>
     <div class="ti"><span class="ti-etq">Total a cobrar</span><span class="ti-val">${fmtMoneda(totCuota)}</span></div>
   </div>`;
@@ -263,6 +282,7 @@ function vistaDatos(p) {
     <div class="dato"><div class="etq">Tasa mensual</div><div class="val">${escapar(p.tasa_mensual_pct)}%</div></div>
     <div class="dato"><div class="etq">Fórmula de interés</div><div class="val">${p.formula === "B" ? "B (simple)" : "A (efectiva)"}</div></div>
     <div class="dato"><div class="etq">Fuente / Entidad</div><div class="val">${escapar(p.fuente)}</div></div>
+    ${Number(p.tasa_carrillo_pct) > 0 ? `<div class="dato"><div class="etq">Tasa mensual de Carrillo</div><div class="val">${escapar(p.tasa_carrillo_pct)}%</div></div>` : ""}
     <div class="dato"><div class="etq">Fecha de desembolso</div><div class="val">${fmtFecha(p.fecha_desembolso)}</div></div>
     <div class="dato"><div class="etq">Primer vencimiento</div><div class="val">${fmtFecha(p.fecha_primer_vencimiento)}</div></div>
     <div class="dato"><div class="etq">N° de cuotas</div><div class="val">${p.num_cuotas}</div></div>
@@ -328,6 +348,7 @@ function abrirFormulario(p) {
             ${estado.fuentes.map((fu) => `<option value="${escapar(fu)}"${(e.fuente || "Propios") === fu ? " selected" : ""}>${escapar(fu)}</option>`).join("")}
           </select>
         </div>
+        <div class="campo" id="campo-carrillo"><label>Tasa mensual de Carrillo (%)</label><input id="f-carrillo" type="number" step="0.0001" min="0" value="${e.tasa_carrillo_pct && Number(e.tasa_carrillo_pct) > 0 ? e.tasa_carrillo_pct : 0}"><span class="ayuda">Parte del interés mensual que le corresponde a Carrillo.</span></div>
         <div class="campo"><label>Fecha de desembolso</label><input id="f-desemb" type="date" value="${e.fecha_desembolso || hoy}"></div>
         <div class="campo"><label>Primer vencimiento</label><input id="f-venc" type="date" value="${e.fecha_primer_vencimiento || ""}"><span class="ayuda">Tú la eliges; puede ser menos de un mes.</span></div>
         <div class="campo"><label>N° de cuotas</label><input id="f-cuotas" type="number" min="1" step="1" value="${e.num_cuotas || 12}"></div>
@@ -348,12 +369,19 @@ function abrirFormulario(p) {
 
   $("#m-cerrar").onclick = cerrarModal;
   $("#m-cancelar").onclick = cerrarModal;
-  ["f-nombre", "f-tel", "f-email", "f-monto", "f-tasa", "f-formula", "f-capital", "f-desemb", "f-venc", "f-cuotas", "f-notas"].forEach((id) => {
+  ["f-nombre", "f-tel", "f-email", "f-monto", "f-tasa", "f-formula", "f-fuente", "f-carrillo", "f-capital", "f-desemb", "f-venc", "f-cuotas", "f-notas"].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener("input", previaDebounced);
   });
+  $("#f-fuente").addEventListener("change", toggleCampoCarrillo);
+  toggleCampoCarrillo();
   $("#m-guardar").onclick = () => guardarPrestamo(p);
   actualizarPrevia();
+}
+
+function toggleCampoCarrillo() {
+  const esCarrillo = $("#f-fuente").value === "Carrillo Royalti";
+  $("#campo-carrillo").style.display = esCarrillo ? "" : "none";
 }
 
 function leerFormulario() {
@@ -365,6 +393,7 @@ function leerFormulario() {
     tasa_mensual_pct: $("#f-tasa").value,
     formula: $("#f-formula").value,
     fuente: $("#f-fuente").value,
+    tasa_carrillo_pct: $("#f-carrillo").value || "0",
     capital_final: $("#f-capital").value || "0",
     fecha_desembolso: $("#f-desemb").value,
     fecha_primer_vencimiento: $("#f-venc").value,

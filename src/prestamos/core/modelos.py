@@ -13,7 +13,8 @@ ESTADO_PAGADO = "Pagado"
 
 # Fuente / entidad que origina el préstamo.
 FUENTE_PROPIOS = "Propios"
-FUENTES = [FUENTE_PROPIOS, "Carrillo Royalti", "Prestamype"]
+FUENTE_CARRILLO = "Carrillo Royalti"
+FUENTES = [FUENTE_PROPIOS, FUENTE_CARRILLO, "Prestamype"]
 
 
 @dataclass
@@ -59,6 +60,7 @@ class Prestamo:
     formula: str = FORMULA_EFECTIVA
     fuente: str = FUENTE_PROPIOS
     capital_final: Decimal = Decimal("0")
+    tasa_carrillo: Decimal = Decimal("0")   # tasa mensual del interés que es de Carrillo
     notas: str = ""
     estado: str = ESTADO_AL_DIA
     creado_en: date | None = None

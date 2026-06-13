@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from ..core.calculo import desglose_carrillo
 from ..core.modelos import CuotaRegistro, Prestamo
 
 ENCABEZADOS = ["N°", "Fecha", "Días", "Amortización", "Interés", "Cuota", "Saldo Pendiente"]
@@ -55,9 +56,19 @@ def exportar_cronograma(
     )
     ws["A2"].font = Font(italic=True, color="595959")
 
+    # Desglose de Carrillo (si aplica): se añaden dos columnas al final.
+    con_carrillo = bool(
+        prestamo.tasa_carrillo and float(prestamo.tasa_carrillo) > 0
+    )
+    pares = (
+        desglose_carrillo(prestamo.monto, prestamo.tasa_carrillo, prestamo.formula, cuotas)
+        if con_carrillo else None
+    )
+    encabezados = list(ENCABEZADOS) + (["Int. Carrillo", "Mi interés"] if con_carrillo else [])
+
     # Fila de encabezados de la tabla.
     fila0 = 4
-    for col, texto in enumerate(ENCABEZADOS, start=1):
+    for col, texto in enumerate(encabezados, start=1):
         celda = ws.cell(row=fila0, column=col, value=texto)
         celda.font = Font(bold=True, color="FFFFFF")
         celda.fill = PatternFill("solid", fgColor=_AZUL)
@@ -71,6 +82,9 @@ def exportar_cronograma(
             c.numero, c.fecha.isoformat(), c.dias,
             _f(c.amortizacion), _f(c.interes), _f(c.cuota), _f(c.saldo),
         ]
+        if con_carrillo:
+            ic, im = pares[i]
+            valores += [_f(ic), _f(im)]
         for col, valor in enumerate(valores, start=1):
             celda = ws.cell(row=fila, column=col, value=valor)
             celda.border = borde
@@ -79,7 +93,7 @@ def exportar_cronograma(
             if col in (1, 3):
                 celda.alignment = Alignment(horizontal="center")
         if i % 2 == 1:
-            for col in range(1, len(ENCABEZADOS) + 1):
+            for col in range(1, len(encabezados) + 1):
                 ws.cell(row=fila, column=col).fill = PatternFill("solid", fgColor=_GRIS)
 
     # Fila de totales.
@@ -88,13 +102,16 @@ def exportar_cronograma(
     total_cuota = sum(_f(c.cuota) for c in cuotas)
     total_interes = sum(_f(c.interes) for c in cuotas)
     total_amort = sum(_f(c.amortizacion) for c in cuotas)
-    for col, valor in ((4, total_amort), (5, total_interes), (6, total_cuota)):
+    totales = [(4, total_amort), (5, total_interes), (6, total_cuota)]
+    if con_carrillo:
+        totales += [(8, sum(_f(ic) for ic, _ in pares)), (9, sum(_f(im) for _, im in pares))]
+    for col, valor in totales:
         celda = ws.cell(row=fila_total, column=col, value=valor)
         celda.font = Font(bold=True)
         celda.number_format = moneda
 
     # Anchos de columna.
-    anchos = [6, 14, 7, 16, 14, 14, 18]
+    anchos = [6, 14, 7, 16, 14, 14, 18] + ([14, 14] if con_carrillo else [])
     for col, ancho in enumerate(anchos, start=1):
         ws.column_dimensions[get_column_letter(col)].width = ancho
 

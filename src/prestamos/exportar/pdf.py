@@ -18,7 +18,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from ..core.calculo import redondear
+from ..core.calculo import desglose_carrillo, redondear
 from ..core.modelos import CuotaRegistro, Prestamo
 
 _AZUL = colors.HexColor("#1F4E78")
@@ -108,63 +108,106 @@ def exportar_estado_cuenta(
     pagado = sum((c.cuota for c in cuotas if c.pagada), Decimal(0))
     pagadas = sum(1 for c in cuotas if c.pagada)
 
+    con_carrillo = bool(
+        getattr(prestamo, "tasa_carrillo", 0) and Decimal(prestamo.tasa_carrillo) > 0
+    )
+    if con_carrillo:
+        pares = desglose_carrillo(
+            prestamo.monto, prestamo.tasa_carrillo, prestamo.formula, cuotas
+        )
+        tot_carrillo = sum((ic for ic, _ in pares), Decimal(0))
+        tot_mio = sum((im for _, im in pares), Decimal(0))
+
     res_etq = ParagraphStyle("retq", parent=etiqueta, alignment=TA_CENTER)
     res_val = ParagraphStyle("rval", parent=estilos["Normal"], fontSize=11, alignment=TA_CENTER, leading=14)
     res_val.fontName = "Helvetica-Bold"
 
-    def rcelda(etq, val):
-        return [Paragraph(etq, res_etq), Paragraph(val, res_val)]
-
+    if con_carrillo:
+        etqs = ["Total a pagar", "Interés Carrillo", "Mi interés", "Capital recuperado",
+                "Pagado", "Por cobrar", "Cuotas pagadas"]
+        vals = [_m(total), _m(tot_carrillo), _m(tot_mio), _m(amort),
+                _m(pagado), _m(total - pagado), f"{pagadas}/{len(cuotas)}"]
+    else:
+        etqs = ["Total a pagar", "Ganancia por intereses", "Capital recuperado",
+                "Pagado", "Por cobrar", "Cuotas pagadas"]
+        vals = [_m(total), _m(interes), _m(amort), _m(pagado),
+                _m(total - pagado), f"{pagadas}/{len(cuotas)}"]
+    ncol = len(etqs)
     resumen = [
-        [Paragraph("Total a pagar", res_etq), Paragraph("Ganancia por intereses", res_etq),
-         Paragraph("Capital recuperado", res_etq), Paragraph("Pagado", res_etq),
-         Paragraph("Por cobrar", res_etq), Paragraph("Cuotas pagadas", res_etq)],
-        [Paragraph(_m(total), res_val), Paragraph(_m(interes), res_val),
-         Paragraph(_m(amort), res_val), Paragraph(_m(pagado), res_val),
-         Paragraph(_m(total - pagado), res_val), Paragraph(f"{pagadas}/{len(cuotas)}", res_val)],
+        [Paragraph(e, res_etq) for e in etqs],
+        [Paragraph(v, res_val) for v in vals],
     ]
-    t_res = Table(resumen, colWidths=[(269 * mm) / 6] * 6)
-    t_res.setStyle(TableStyle([
+    estilo_res = [
         ("BACKGROUND", (0, 0), (-1, -1), _AZUL_CLARO),
         ("BOX", (0, 0), (-1, -1), 0.5, colors.white),
         ("INNERGRID", (0, 0), (-1, -1), 3, colors.white),
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("TEXTCOLOR", (1, 1), (1, 1), colors.HexColor("#1F9D57")),  # ganancia
-        ("TEXTCOLOR", (2, 1), (2, 1), _AZUL),                        # capital
-    ]))
+    ]
+    if con_carrillo:
+        estilo_res += [
+            ("TEXTCOLOR", (1, 1), (1, 1), colors.HexColor("#6b3fc0")),  # carrillo
+            ("TEXTCOLOR", (2, 1), (2, 1), colors.HexColor("#1F9D57")),  # mío
+            ("TEXTCOLOR", (3, 1), (3, 1), _AZUL),                        # capital
+        ]
+    else:
+        estilo_res += [
+            ("TEXTCOLOR", (1, 1), (1, 1), colors.HexColor("#1F9D57")),
+            ("TEXTCOLOR", (2, 1), (2, 1), _AZUL),
+        ]
+    t_res = Table(resumen, colWidths=[(269 * mm) / ncol] * ncol)
+    t_res.setStyle(TableStyle(estilo_res))
     elementos.append(t_res)
     elementos.append(Spacer(1, 12))
 
     # --- Cronograma ---
-    datos = [ENCABEZADOS]
-    for c in cuotas:
-        datos.append([
-            str(c.numero), _fecha(c.fecha), str(c.dias), _m(c.interes),
-            _m(c.amortizacion), _m(c.cuota), _m(c.saldo), "Sí" if c.pagada else "—",
-        ])
-    datos.append(["", "", "TOTALES", _m(interes), _m(amort), _m(total), "", ""])
+    enc = ["N°", "Vencimiento", "N° Días", "Intereses"]
+    if con_carrillo:
+        enc += ["Int. Carrillo", "Mi interés"]
+    enc += ["Amortización", "Cuota", "Saldo Pendiente", "Pagada"]
 
-    anchos = [12, 26, 17, 38, 40, 38, 44, 18]
+    datos = [enc]
+    for idx, c in enumerate(cuotas):
+        fila = [str(c.numero), _fecha(c.fecha), str(c.dias), _m(c.interes)]
+        if con_carrillo:
+            ic, im = pares[idx]
+            fila += [_m(ic), _m(im)]
+        fila += [_m(c.amortizacion), _m(c.cuota), _m(c.saldo), "Sí" if c.pagada else "—"]
+        datos.append(fila)
+    fila_tot = ["", "", "TOTALES", _m(interes)]
+    if con_carrillo:
+        fila_tot += [_m(tot_carrillo), _m(tot_mio)]
+    fila_tot += [_m(amort), _m(total), "", ""]
+    datos.append(fila_tot)
+
+    if con_carrillo:
+        anchos = [10, 22, 13, 28, 30, 30, 30, 28, 36, 14]
+    else:
+        anchos = [12, 26, 17, 38, 40, 38, 44, 18]
+    n_cols = len(enc)
+    saldo_idx = n_cols - 2
     tabla = Table(datos, colWidths=[w * mm for w in anchos], repeatRows=1)
     estilo = [
         ("BACKGROUND", (0, 0), (-1, 0), _AZUL),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-        ("ALIGN", (3, 0), (6, -1), "RIGHT"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8 if con_carrillo else 8.5),
+        ("ALIGN", (3, 0), (saldo_idx, -1), "RIGHT"),
         ("ALIGN", (0, 0), (2, -1), "CENTER"),
-        ("ALIGN", (7, 0), (7, -1), "CENTER"),
+        ("ALIGN", (n_cols - 1, 0), (n_cols - 1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D9D9D9")),
-        # Fila de totales
         ("BACKGROUND", (0, -1), (-1, -1), _AZUL_CLARO),
         ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
         ("LINEABOVE", (0, -1), (-1, -1), 1, _AZUL),
     ]
-    # Filas alternas y resaltado de cuotas pagadas.
+    if con_carrillo:
+        estilo += [
+            ("TEXTCOLOR", (4, 1), (4, -1), colors.HexColor("#6b3fc0")),
+            ("TEXTCOLOR", (5, 1), (5, -1), colors.HexColor("#1F9D57")),
+        ]
     for i, c in enumerate(cuotas, start=1):
         if c.pagada:
             estilo.append(("BACKGROUND", (0, i), (-1, i), _VERDE))

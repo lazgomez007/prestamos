@@ -114,12 +114,14 @@ class Repositorio:
         cur = self.con.execute(
             """INSERT INTO prestamos
                (cliente_id, monto, tasa_mensual, formula, fuente, capital_final,
-                fecha_desembolso, fecha_primer_vencimiento, num_cuotas, notas, creado_en)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                tasa_carrillo, fecha_desembolso, fecha_primer_vencimiento, num_cuotas,
+                notas, creado_en)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 cliente_id, str(p.monto), str(p.tasa_mensual), p.formula, p.fuente,
-                str(p.capital_final), p.fecha_desembolso.isoformat(),
-                p.fecha_primer_vencimiento.isoformat(), p.num_cuotas, p.notas, creado,
+                str(p.capital_final), str(p.tasa_carrillo),
+                p.fecha_desembolso.isoformat(), p.fecha_primer_vencimiento.isoformat(),
+                p.num_cuotas, p.notas, creado,
             ),
         )
         p.id = cur.lastrowid
@@ -133,11 +135,11 @@ class Repositorio:
         self.con.execute(
             """UPDATE prestamos
                SET cliente_id=?, monto=?, tasa_mensual=?, formula=?, fuente=?,
-                   capital_final=?, fecha_desembolso=?, fecha_primer_vencimiento=?,
-                   num_cuotas=?, notas=? WHERE id=?""",
+                   capital_final=?, tasa_carrillo=?, fecha_desembolso=?,
+                   fecha_primer_vencimiento=?, num_cuotas=?, notas=? WHERE id=?""",
             (
                 p.cliente.id, str(p.monto), str(p.tasa_mensual), p.formula, p.fuente,
-                str(p.capital_final), p.fecha_desembolso.isoformat(),
+                str(p.capital_final), str(p.tasa_carrillo), p.fecha_desembolso.isoformat(),
                 p.fecha_primer_vencimiento.isoformat(), p.num_cuotas, p.notas, p.id,
             ),
         )
@@ -168,6 +170,7 @@ class Repositorio:
             id=f["id"], cliente=cliente, monto=_d(f["monto"]),
             tasa_mensual=_d(f["tasa_mensual"]), formula=f["formula"],
             fuente=f["fuente"], capital_final=_d(f["capital_final"]),
+            tasa_carrillo=_d(f["tasa_carrillo"]),
             fecha_desembolso=_fecha(f["fecha_desembolso"]),
             fecha_primer_vencimiento=_fecha(f["fecha_primer_vencimiento"]),
             num_cuotas=f["num_cuotas"], notas=f["notas"],
