@@ -38,7 +38,11 @@ def _esperar_servidor(puerto: int, timeout: float = 20.0) -> bool:
 
 def main() -> None:
     puerto = _puerto_libre()
-    config = uvicorn.Config(app, host=HOST, port=puerto, log_level="warning")
+    # log_config=None evita que uvicorn configure handlers que tocan sys.stdout
+    # (que es None bajo pythonw).
+    config = uvicorn.Config(
+        app, host=HOST, port=puerto, log_level="warning", log_config=None
+    )
     servidor = uvicorn.Server(config)
     # Evita instalar manejadores de señales (no funcionan fuera del hilo principal).
     servidor.install_signal_handlers = lambda: None
