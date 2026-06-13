@@ -176,6 +176,10 @@ function pintarTab() {
   }
 }
 
+function sumarCampo(cuotas, campo) {
+  return cuotas.reduce((a, c) => a + Number(c[campo]), 0);
+}
+
 function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
   const filas = cuotas
     .map((c, i) => {
@@ -196,6 +200,19 @@ function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
       </tr>`;
     })
     .join("");
+
+  const totInteres = sumarCampo(cuotas, "interes");
+  const totAmort = sumarCampo(cuotas, "amortizacion");
+  const totCuota = sumarCampo(cuotas, "cuota");
+  const pie = `<tr class="fila-total">
+      <td class="izq" colspan="3">Totales</td>
+      <td>${fmtMoneda(totInteres)}</td>
+      <td>${fmtMoneda(totAmort)}</td>
+      <td>${fmtMoneda(totCuota)}</td>
+      <td></td>
+      ${conPagos ? "<td></td>" : ""}
+    </tr>`;
+
   return `<div class="tabla-wrap"><table class="crono">
     <thead><tr>
       <th class="centro">N°</th><th class="centro">Vencimiento</th><th class="centro">N° Días</th>
@@ -203,7 +220,13 @@ function tablaCronograma(cuotas, conPagos, indiceCorte = -1) {
       ${conPagos ? '<th class="centro">Pagada</th>' : ""}
     </tr></thead>
     <tbody>${filas}</tbody>
-  </table></div>`;
+    <tfoot>${pie}</tfoot>
+  </table></div>
+  <div class="totales-resumen">
+    <div class="ti ganancia"><span class="ti-etq">💰 Ganancia por intereses</span><span class="ti-val">${fmtMoneda(totInteres)}</span></div>
+    <div class="ti capital"><span class="ti-etq">🔁 Capital recuperado</span><span class="ti-val">${fmtMoneda(totAmort)}</span></div>
+    <div class="ti"><span class="ti-etq">Total a cobrar</span><span class="ti-val">${fmtMoneda(totCuota)}</span></div>
+  </div>`;
 }
 
 function vistaDatos(p) {

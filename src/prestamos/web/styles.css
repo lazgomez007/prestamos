@@ -221,7 +221,30 @@ table.crono td.centro, table.crono th.centro { text-align: center; }
 table.crono tr.pagada { background: var(--verde-bg); }
 table.crono tr.pagada:hover { filter: brightness(0.98); }
 table.crono tr.corte td { border-top: 2px solid var(--acento); }
+table.crono tfoot tr.fila-total td {
+  font-weight: 700;
+  background: var(--bg-suave);
+  border-top: 2px solid var(--acento);
+  position: sticky; bottom: 0;
+}
 .chk { width: 17px; height: 17px; accent-color: var(--acento); cursor: pointer; }
+
+/* Resumen de totales bajo la tabla */
+.totales-resumen {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px;
+}
+.totales-resumen .ti {
+  flex: 1; min-width: 160px;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 13px 16px; border-radius: var(--radio-sm);
+  background: var(--bg-suave); border: 1px solid var(--borde);
+}
+.totales-resumen .ti-etq { font-size: .8rem; color: var(--texto-suave); }
+.totales-resumen .ti-val { font-size: 1.18rem; font-weight: 700; }
+.totales-resumen .ganancia { background: var(--verde-bg); border-color: transparent; }
+.totales-resumen .ganancia .ti-val { color: var(--verde); }
+.totales-resumen .capital { background: var(--acento-suave); border-color: transparent; }
+.totales-resumen .capital .ti-val { color: var(--acento); }
 
 /* ===== Datos / notas ===== */
 .datos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 26px; max-width: 640px; }
