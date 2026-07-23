@@ -279,8 +279,10 @@ def acciones(forzar: bool = False):
                 faltantes.setdefault(iv, []).append(t)
 
     # Solo se consulta lo que falta (al encender una temporalidad nueva, 1 llamada).
+    frescas = []
     for iv, grupo in faltantes.items():
         for l in consultar(grupo, [iv], pausa=0.4):
+            frescas.append(l)
             clave = (l.symbol, l.exchange, l.intervalo)
             datos = l.como_dict()
             if l.error:
@@ -293,6 +295,10 @@ def acciones(forzar: bool = False):
             else:
                 resultados[clave] = datos
                 _CACHE_ACCIONES[clave] = (ahora, datos)
+
+    if frescas:
+        from ..acciones import historial
+        historial.registrar(frescas)     # registra inflexiones al consultar en vivo
 
     lecturas = [
         resultados[(t["symbol"], t["exchange"], iv)]
@@ -311,6 +317,24 @@ def acciones(forzar: bool = False):
         "lecturas": [
             dict(d, ultima_registrada=estado.get(f"{d['symbol']}:{d['intervalo']}"))
             for d in lecturas
+        ],
+    }
+
+
+@app.get("/api/acciones/historial")
+def acciones_historial(symbol: str, intervalo: str):
+    """Línea de tiempo de la señal de un (ticker, temporalidad)."""
+    from ..acciones.historial import cargar
+    from ..acciones.tv import ETIQUETAS, ETIQUETAS_INTERVALO
+
+    serie = cargar().get(f"{symbol.upper()}:{intervalo}", [])
+    return {
+        "symbol": symbol.upper(),
+        "intervalo": intervalo,
+        "etiqueta_intervalo": ETIQUETAS_INTERVALO.get(intervalo, intervalo),
+        "puntos": [
+            {**p, "etiqueta": ETIQUETAS.get(p.get("r", ""), p.get("r"))}
+            for p in serie
         ],
     }
 

@@ -6,7 +6,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import telegram
+from . import historial, telegram
 from .config import CARPETA, cargar_config, cargar_estado, guardar_estado
 from .tv import SENALES_FUERTES, Lectura, consultar
 
@@ -82,6 +82,9 @@ def ejecutar(notificar: bool = True, pausa: float = 1.0) -> tuple[list[Lectura],
              len(cfg["tickers"]), cfg["intervalos"], cfg["regla"])
 
     lecturas = consultar(cfg["tickers"], cfg["intervalos"], pausa=pausa)
+    inflexiones = historial.registrar(lecturas)   # línea de tiempo por temporalidad
+    if inflexiones:
+        log.info("Se registraron %d inflexiones en el historial.", inflexiones)
     cambios, nuevo_estado = evaluar(lecturas, estado, cfg["regla"])
 
     for l in lecturas:

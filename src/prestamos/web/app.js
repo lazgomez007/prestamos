@@ -710,8 +710,9 @@ function renderAcciones(data) {
 
   const celda = (l) => {
     if (!l) return `<td class="centro sin-dato">—</td>`;
+    const attrs = `data-sym="${escapar(l.symbol)}" data-iv="${escapar(l.intervalo)}"`;
     if (l.error) {
-      return `<td class="centro" style="color:var(--rojo);font-size:.8rem">${escapar(l.error)}</td>`;
+      return `<td class="centro celda-click" ${attrs} style="color:var(--rojo);font-size:.8rem" title="Ver historial">${escapar(l.error)}</td>`;
     }
     const cls = CLASE_SENAL[l.recomendacion] || "s-neutral";
     const cambio = l.ultima_registrada && l.ultima_registrada !== l.recomendacion
@@ -720,7 +721,7 @@ function renderAcciones(data) {
     const viejo = l.desactualizado
       ? `<div class="celda-sub" title="TradingView no respondió; se muestra la última lectura conocida">⏳ dato anterior</div>`
       : "";
-    return `<td class="centro${l.desactualizado ? " celda-vieja" : ""}">
+    return `<td class="centro celda-click${l.desactualizado ? " celda-vieja" : ""}" ${attrs} title="Ver historial de esta temporalidad">
       <span class="senal ${cls}">${escapar(l.etiqueta)}</span>
       <div class="celda-sub" title="Indicadores en compra / neutral / venta">${l.compra} / ${l.neutral} / ${l.venta}</div>
       ${cambio}${viejo}
@@ -807,6 +808,107 @@ function renderAcciones(data) {
   document.querySelectorAll(".chip-intervalo").forEach((b) =>
     b.addEventListener("click", () => alternarIntervalo(b.dataset.iv))
   );
+  document.querySelectorAll(".celda-click").forEach((c) =>
+    c.addEventListener("click", () => verHistorial(c.dataset.sym, c.dataset.iv))
+  );
+}
+
+/* ===== Historial de una temporalidad (línea de tiempo) ===== */
+const NIVEL_SENAL = { STRONG_BUY: 1, BUY: 0.5, NEUTRAL: 0, SELL: -0.5, STRONG_SELL: -1 };
+
+async function verHistorial(symbol, intervalo) {
+  let data;
+  try {
+    data = await api("GET", `/api/acciones/historial?symbol=${encodeURIComponent(symbol)}&intervalo=${encodeURIComponent(intervalo)}`);
+  } catch (err) { avisar(err.message, true); return; }
+
+  const puntos = data.puntos;
+  const listaHtml = puntos.length
+    ? puntos.slice().reverse().map((p, i) => {
+        const cls = CLASE_SENAL[p.r] || "s-neutral";
+        const flecha = i < puntos.length - 1
+          ? ` <span class="sin-dato">(desde ${escapar(puntos[puntos.length - 1 - i - 1] ? puntos[puntos.length - 1 - i - 1].r : "—")})</span>` : "";
+        return `<div class="hist-item">
+          <span class="hist-fecha">${fmtFechaHora(p.t)}</span>
+          <span class="senal ${cls}">${escapar(p.etiqueta)}</span>
+          <span class="sin-dato">${p.s != null ? "aguja " + Number(p.s).toFixed(2) : ""}</span>
+        </div>`;
+      }).join("")
+    : `<p style="color:var(--texto-suave)">Aún no hay historial para esta temporalidad.
+       Se irá registrando cada vez que corras el monitor o abras la pestaña Acciones,
+       guardando <b>cada cambio de señal</b> con su fecha.</p>`;
+
+  abrirModal(`
+    <div class="modal-cabecera">
+      <h3>${escapar(symbol)} · ${escapar(data.etiqueta_intervalo)} — historial de tendencia</h3>
+      <button class="cerrar" id="m-cerrar">×</button>
+    </div>
+    <div class="modal-cuerpo">
+      <div class="hist-chart" id="hist-chart"></div>
+      <h4 style="margin:16px 0 8px">Inflexiones registradas (${puntos.length})</h4>
+      <div class="hist-lista">${listaHtml}</div>
+    </div>
+    <div class="modal-pie">
+      <button class="btn btn-primario" id="m-ok">Cerrar</button>
+    </div>`);
+  $("#m-cerrar").onclick = cerrarModal;
+  $("#m-ok").onclick = cerrarModal;
+  dibujarHistorial(puntos);
+}
+
+function nivelDe(p) {
+  return p.s != null ? Number(p.s) : (NIVEL_SENAL[p.r] ?? 0);
+}
+
+function dibujarHistorial(puntos) {
+  const cont = document.getElementById("hist-chart");
+  if (!cont) return;
+  if (!puntos.length) { cont.style.display = "none"; return; }
+
+  const W = Math.max(cont.clientWidth, 400), H = 200;
+  const padL = 74, padR = 14, padTop = 12, padBot = 26;
+  const t0 = new Date(puntos[0].t).getTime();
+  const tNow = Date.now();
+  const tMin = t0, tMax = Math.max(tNow, new Date(puntos[puntos.length - 1].t).getTime());
+  const xs = (t) => tMax === tMin ? (W - padR + padL) / 2
+    : padL + ((t - tMin) / (tMax - tMin)) * (W - padL - padR);
+  const ys = (v) => padTop + ((1 - v) / 2) * (H - padTop - padBot);   // v: -1..1
+
+  // Bandas de las 5 zonas.
+  const zonas = [
+    ["#1f9d57", 1, 0.5, "Compra fuerte"], ["#8fd3a8", 0.5, 0.1, "Compra"],
+    ["#c9ccd6", 0.1, -0.1, "Neutral"], ["#f0a9a3", -0.1, -0.5, "Venta"],
+    ["#c0392b", -0.5, -1, "Venta fuerte"],
+  ];
+  const bandas = zonas.map(([color, hi, lo, txt]) =>
+    `<rect x="${padL}" y="${ys(hi).toFixed(1)}" width="${(W - padL - padR).toFixed(1)}" height="${(ys(lo) - ys(hi)).toFixed(1)}" fill="${color}" opacity="0.13"/>
+     <text class="hist-zona" x="6" y="${((ys(hi) + ys(lo)) / 2 + 3).toFixed(1)}">${txt}</text>`
+  ).join("");
+
+  // Línea escalonada (la señal se mantiene hasta el próximo cambio).
+  let d = `M ${xs(new Date(puntos[0].t).getTime()).toFixed(1)} ${ys(nivelDe(puntos[0])).toFixed(1)}`;
+  for (let i = 1; i < puntos.length; i++) {
+    const x = xs(new Date(puntos[i].t).getTime());
+    d += ` H ${x.toFixed(1)} V ${ys(nivelDe(puntos[i])).toFixed(1)}`;
+  }
+  d += ` H ${xs(tMax).toFixed(1)}`;   // extiende hasta ahora
+  const dots = puntos.map((p) => {
+    const cls = { STRONG_BUY: "#1f9d57", BUY: "#1f9d57", NEUTRAL: "#888", SELL: "#c0392b", STRONG_SELL: "#c0392b" }[p.r] || "#888";
+    return `<circle cx="${xs(new Date(p.t).getTime()).toFixed(1)}" cy="${ys(nivelDe(p)).toFixed(1)}" r="4" fill="${cls}" stroke="#fff" stroke-width="1.5"><title>${fmtFechaHora(p.t)}: ${escapar(p.r)}</title></circle>`;
+  }).join("");
+
+  cont.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">
+    ${bandas}
+    <path d="${d}" fill="none" stroke="var(--acento)" stroke-width="2.5" stroke-linejoin="round"/>
+    ${dots}
+  </svg>`;
+}
+
+function fmtFechaHora(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 async function alternarIntervalo(clave) {

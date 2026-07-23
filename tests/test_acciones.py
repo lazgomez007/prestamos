@@ -135,3 +135,36 @@ def test_estado_corrupto_no_rompe():
     ruta = Path(tempfile.mkdtemp()) / "state.json"
     ruta.write_text("{ esto no es json", encoding="utf-8")
     assert cargar_estado(ruta) == {}
+
+
+# --- Historial (línea de tiempo) --------------------------------------------
+def test_historial_registra_solo_inflexiones():
+    from datetime import datetime
+
+    from prestamos.acciones import historial
+
+    ruta = Path(tempfile.mkdtemp()) / "history.json"
+
+    def lect(rec, score):
+        return Lectura(symbol="SPY", exchange="AMEX", intervalo="1D",
+                       recomendacion=rec, score=score)
+
+    # Primera lectura: se registra.
+    assert historial.registrar([lect("BUY", 0.4)], ruta, datetime(2026, 1, 1, 9)) == 1
+    # Misma señal: NO se registra.
+    assert historial.registrar([lect("BUY", 0.45)], ruta, datetime(2026, 1, 1, 10)) == 0
+    # Cambio de señal: se registra la inflexión.
+    assert historial.registrar([lect("SELL", -0.3)], ruta, datetime(2026, 1, 2, 9)) == 1
+
+    serie = historial.cargar(ruta)["SPY:1D"]
+    assert [p["r"] for p in serie] == ["BUY", "SELL"]
+    assert serie[0]["s"] == 0.4 and serie[-1]["t"] == "2026-01-02T09:00:00"
+
+
+def test_historial_ignora_errores():
+    from prestamos.acciones import historial
+    ruta = Path(tempfile.mkdtemp()) / "history.json"
+    fallida = Lectura(symbol="XXX", exchange="NASDAQ", intervalo="1D",
+                      recomendacion=None, error="sin datos")
+    assert historial.registrar([fallida], ruta) == 0
+    assert historial.cargar(ruta) == {}

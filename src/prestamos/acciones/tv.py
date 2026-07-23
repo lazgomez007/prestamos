@@ -100,6 +100,7 @@ class Lectura:
     compra: int = 0
     neutral: int = 0
     venta: int = 0
+    score: float | None = None      # Recommend.All: posición de la aguja (-1 a +1)
     error: str = ""
 
     @property
@@ -115,7 +116,8 @@ class Lectura:
             "symbol": self.symbol, "exchange": self.exchange,
             "intervalo": self.intervalo, "recomendacion": self.recomendacion,
             "etiqueta": self.etiqueta, "compra": self.compra,
-            "neutral": self.neutral, "venta": self.venta, "error": self.error,
+            "neutral": self.neutral, "venta": self.venta,
+            "score": self.score, "error": self.error,
         }
 
 
@@ -216,12 +218,15 @@ def consultar(
                     lecturas.append(Lectura(t["symbol"], t["exchange"], intervalo,
                                             error="sin datos (símbolo o mercado)"))
                     continue
+                indicadores = getattr(analisis, "indicators", None) or {}
+                bruto = indicadores.get("Recommend.All")
                 lecturas.append(Lectura(
                     symbol=t["symbol"], exchange=t["exchange"], intervalo=intervalo,
                     recomendacion=resumen.get("RECOMMENDATION"),
                     compra=int(resumen.get("BUY", 0)),
                     neutral=int(resumen.get("NEUTRAL", 0)),
                     venta=int(resumen.get("SELL", 0)),
+                    score=round(float(bruto), 4) if bruto is not None else None,
                 ))
             if pausa:
                 time.sleep(pausa)
