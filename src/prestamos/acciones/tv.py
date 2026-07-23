@@ -19,9 +19,44 @@ try:  # pragma: no cover - depende del entorno
 except Exception:  # pragma: no cover
     pass
 
+import tradingview_ta.main as _tv_main
 from tradingview_ta import Interval, get_multiple_analysis
 
 log = logging.getLogger(__name__)
+
+# La librería envía "User-Agent: tradingview_ta/x.y" en TODAS sus instalaciones,
+# así que su cuota la comparten miles de usuarios y devuelve 429 casi siempre.
+# Identificamos nuestra app con su propio nombre (sin suplantar a un navegador)
+# y mantenemos un volumen bajo (caché + monitor por hora).
+USER_AGENT = "GestorPrestamos/1.0 (monitor personal)"
+
+
+class LimiteTradingView(Exception):
+    """TradingView respondió 429 (demasiadas consultas)."""
+
+
+class _ClienteHTTP:
+    """Envuelve `requests` para fijar nuestro User-Agent y detectar el 429."""
+
+    def __init__(self, real):
+        self._real = real
+
+    def post(self, url, **kw):
+        cabeceras = dict(kw.pop("headers", None) or {})
+        cabeceras["User-Agent"] = USER_AGENT
+        respuesta = self._real.post(url, headers=cabeceras, **kw)
+        if respuesta.status_code == 429:
+            espera = respuesta.headers.get("Retry-After")
+            raise LimiteTradingView(
+                f"429 Too Many Requests{f' (reintentar en {espera}s)' if espera else ''}"
+            )
+        return respuesta
+
+    def __getattr__(self, nombre):
+        return getattr(self._real, nombre)
+
+
+_tv_main.requests = _ClienteHTTP(_tv_main.requests)
 
 INTERVALOS = {
     "1m": Interval.INTERVAL_1_MINUTE,
@@ -113,6 +148,8 @@ def detectar_exchange(symbol: str, screener: str = "america") -> str | None:
 
 def _mensaje_error(e: Exception) -> str:
     """Traduce errores técnicos a algo entendible."""
+    if isinstance(e, LimiteTradingView):
+        return "TradingView limitó las consultas (429). Espera un momento y actualiza."
     if isinstance(e, json.JSONDecodeError):
         return "TradingView no respondió (límite de consultas). Espera unos segundos."
     nombre = type(e).__name__
