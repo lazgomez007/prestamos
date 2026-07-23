@@ -35,6 +35,13 @@ INTERVALOS = {
     "1M": Interval.INTERVAL_1_MONTH,
 }
 
+# Nombres amigables de cada temporalidad (estilo Investing.com).
+ETIQUETAS_INTERVALO = {
+    "1m": "1 min", "5m": "5 min", "15m": "15 min", "30m": "30 min",
+    "1h": "1 hora", "2h": "2 horas", "4h": "4 horas",
+    "1D": "Diario", "1W": "Semanal", "1M": "Mensual",
+}
+
 SENALES = ["STRONG_BUY", "BUY", "NEUTRAL", "SELL", "STRONG_SELL"]
 SENALES_FUERTES = {"STRONG_BUY", "STRONG_SELL"}
 

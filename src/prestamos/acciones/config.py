@@ -89,6 +89,24 @@ def quitar_ticker(cfg: dict, symbol: str) -> bool:
     return len(cfg["tickers"]) < antes
 
 
+def set_intervalos(cfg: dict, intervalos: list[str]) -> list[str]:
+    """Fija las temporalidades a vigilar, validadas y en orden canónico."""
+    from .tv import INTERVALOS
+
+    pedidos = {str(i).strip() for i in intervalos}
+    desconocidos = pedidos - set(INTERVALOS)
+    if desconocidos:
+        raise ValueError(
+            f"Temporalidad no soportada: {', '.join(sorted(desconocidos))}. "
+            f"Usa: {', '.join(INTERVALOS)}."
+        )
+    validos = [i for i in INTERVALOS if i in pedidos]   # orden corto -> largo
+    if not validos:
+        raise ValueError("Selecciona al menos una temporalidad.")
+    cfg["intervalos"] = validos
+    return validos
+
+
 def limpiar_estado_de(symbol: str, ruta: Path | None = None) -> None:
     """Borra del estado las entradas de un símbolo que ya no se vigila."""
     symbol = symbol.strip().upper()

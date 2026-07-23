@@ -251,19 +251,22 @@ def acciones():
     """Semáforo técnico en vivo de los tickers configurados."""
     from ..acciones import telegram as tg
     from ..acciones.config import cargar_config, cargar_estado
-    from ..acciones.tv import consultar
+    from ..acciones.tv import ETIQUETAS_INTERVALO, INTERVALOS, consultar
 
     try:
         cfg = cargar_config()
     except FileNotFoundError as e:
         raise HTTPException(400, str(e))
     estado = cargar_estado()
-    lecturas = consultar(cfg["tickers"], cfg["intervalos"], pausa=0.5)
+    lecturas = consultar(cfg["tickers"], cfg["intervalos"], pausa=0.4)
     return {
         "config": {
             "intervalos": cfg["intervalos"], "regla": cfg["regla"],
             "tickers": cfg["tickers"],
         },
+        "intervalos_disponibles": [
+            {"clave": k, "etiqueta": ETIQUETAS_INTERVALO.get(k, k)} for k in INTERVALOS
+        ],
         "telegram_configurado": tg.configurado(),
         "lecturas": [
             dict(l.como_dict(), ultima_registrada=estado.get(l.clave))
@@ -298,6 +301,20 @@ def agregar_accion(data: dict = Body(...)):
         raise HTTPException(400, f"'{symbol}' ya está en la lista.")
     guardar_config(cfg)
     return {"ok": True, "symbol": symbol, "exchange": exchange}
+
+
+@app.put("/api/acciones/intervalos")
+def fijar_intervalos(data: dict = Body(...)):
+    """Define qué temporalidades se vigilan (ej. 30m, 1h, 1D, 1W, 1M)."""
+    from ..acciones.config import cargar_config, guardar_config, set_intervalos
+
+    cfg = cargar_config()
+    try:
+        nuevos = set_intervalos(cfg, data.get("intervalos") or [])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    guardar_config(cfg)
+    return {"ok": True, "intervalos": nuevos}
 
 
 @app.delete("/api/acciones/tickers/{symbol}")

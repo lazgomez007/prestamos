@@ -88,6 +88,20 @@ def test_agregar_y_quitar_ticker():
     assert quitar_ticker(cfg, "NOEXISTE") is False
 
 
+def test_set_intervalos_valida_y_ordena():
+    from prestamos.acciones.config import set_intervalos
+    cfg = {"intervalos": ["1D"]}
+    # Se guardan en orden canónico (de corto a largo), no en el orden recibido.
+    assert set_intervalos(cfg, ["1M", "1h", "1D"]) == ["1h", "1D", "1M"]
+    assert cfg["intervalos"] == ["1h", "1D", "1M"]
+
+    import pytest
+    with pytest.raises(ValueError):
+        set_intervalos(cfg, ["7h"])          # no soportada
+    with pytest.raises(ValueError):
+        set_intervalos(cfg, [])              # ninguna
+
+
 def test_guardar_y_recargar_config():
     from prestamos.acciones.config import cargar_config, guardar_config
     ruta = Path(tempfile.mkdtemp()) / "config.yaml"

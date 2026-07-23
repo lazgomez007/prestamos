@@ -419,6 +419,19 @@ table.crono tr.mes-actual td { background: var(--ambar-bg); font-weight: 650; }
   white-space: nowrap;
 }
 
+/* Selector de temporalidades */
+.acc-intervalos { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.chip-intervalo {
+  font: inherit; font-size: .82rem; font-weight: 600;
+  padding: 6px 14px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--borde); background: var(--bg-panel);
+  color: var(--texto-suave); transition: all var(--trans);
+}
+.chip-intervalo:hover { border-color: var(--acento); color: var(--texto); }
+.chip-intervalo.activo {
+  background: var(--acento); color: var(--acento-texto); border-color: transparent;
+}
+
 /* Gestión de tickers */
 .acc-gestion { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .acc-gestion input, .acc-gestion select {

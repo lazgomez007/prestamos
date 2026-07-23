@@ -692,6 +692,11 @@ async function mostrarAcciones() {
 
 function renderAcciones(data) {
   const cfg = data.config;
+  estado.accIntervalos = cfg.intervalos.slice();
+  const disponibles = data.intervalos_disponibles || [];
+  const etiquetaIv = {};
+  disponibles.forEach((i) => { etiquetaIv[i.clave] = i.etiqueta; });
+  const nombreIv = (k) => etiquetaIv[k] || k;
   const porTicker = {};
   data.lecturas.forEach((l) => {
     (porTicker[l.symbol] = porTicker[l.symbol] || []).push(l);
@@ -731,7 +736,11 @@ function renderAcciones(data) {
     .join("");
 
   const encabezadosIntervalo = cfg.intervalos
-    .map((iv) => `<th class="centro">${escapar(iv)}</th>`)
+    .map((iv) => `<th class="centro">${escapar(nombreIv(iv))}</th>`)
+    .join("");
+
+  const chipsIntervalo = disponibles
+    .map((i) => `<button class="chip-intervalo${cfg.intervalos.includes(i.clave) ? " activo" : ""}" data-iv="${escapar(i.clave)}">${escapar(i.etiqueta)}</button>`)
     .join("");
 
   const tg = data.telegram_configurado
@@ -742,9 +751,7 @@ function renderAcciones(data) {
     <div class="dash-cab">
       <button class="btn" id="acc-volver">← Préstamos</button>
       <h2>Acciones — análisis técnico</h2>
-      <span class="dash-hint">
-        Temporalidades: <b>${cfg.intervalos.join(", ")}</b> · Regla: <b>${escapar(cfg.regla)}</b>
-      </span>
+      <span class="dash-hint">Regla: <b>${escapar(cfg.regla)}</b></span>
       <button class="btn btn-primario" id="acc-refrescar">↻ Actualizar</button>
     </div>
     <p style="margin:0 0 12px">${tg}</p>
@@ -765,6 +772,10 @@ function renderAcciones(data) {
           <button data-sym="${escapar(t.symbol)}" title="Quitar de la lista">×</button></span>`
       ).join("")
     }</div>
+    <div class="acc-intervalos">
+      <span class="dash-hint">Temporalidades a vigilar:</span>
+      ${chipsIntervalo}
+    </div>
     <div class="tabla-wrap">
       <table class="crono">
         <thead><tr>
@@ -790,6 +801,24 @@ function renderAcciones(data) {
   document.querySelectorAll(".chip-ticker button").forEach((b) =>
     b.addEventListener("click", () => quitarAccion(b.dataset.sym))
   );
+  document.querySelectorAll(".chip-intervalo").forEach((b) =>
+    b.addEventListener("click", () => alternarIntervalo(b.dataset.iv))
+  );
+}
+
+async function alternarIntervalo(clave) {
+  const actuales = new Set(estado.accIntervalos || []);
+  actuales.has(clave) ? actuales.delete(clave) : actuales.add(clave);
+  if (!actuales.size) {
+    avisar("Debe quedar al menos una temporalidad.", true);
+    return;
+  }
+  try {
+    await api("PUT", "/api/acciones/intervalos", { intervalos: [...actuales] });
+    mostrarAcciones();
+  } catch (err) {
+    avisar(err.message, true);
+  }
 }
 
 async function agregarAccion() {
