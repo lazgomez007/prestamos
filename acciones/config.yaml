@@ -21,10 +21,6 @@ tickers:
   exchange: NASDAQ
   screener: america
 intervalos:
-- 30m
 - 1h
-- 4h
 - 1D
-- 1W
-- 1M
 regla: any_change

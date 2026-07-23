@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -246,9 +247,15 @@ def fuentes():
     return {"fuentes": FUENTES}
 
 
+# Caché en memoria de las lecturas: evita repreguntar a TradingView (y que nos
+# limite) al alternar temporalidades. Clave: (symbol, exchange, intervalo).
+_CACHE_ACCIONES: dict[tuple[str, str, str], tuple[float, dict]] = {}
+_CACHE_TTL = 120.0   # segundos
+
+
 @app.get("/api/acciones")
-def acciones():
-    """Semáforo técnico en vivo de los tickers configurados."""
+def acciones(forzar: bool = False):
+    """Semáforo técnico de los tickers configurados (usa caché de 2 minutos)."""
     from ..acciones import telegram as tg
     from ..acciones.config import cargar_config, cargar_estado
     from ..acciones.tv import ETIQUETAS_INTERVALO, INTERVALOS, consultar
@@ -258,7 +265,40 @@ def acciones():
     except FileNotFoundError as e:
         raise HTTPException(400, str(e))
     estado = cargar_estado()
-    lecturas = consultar(cfg["tickers"], cfg["intervalos"], pausa=0.4)
+
+    ahora = time.time()
+    resultados: dict[tuple[str, str, str], dict] = {}
+    faltantes: dict[str, list[dict]] = {}
+    for t in cfg["tickers"]:
+        for iv in cfg["intervalos"]:
+            clave = (t["symbol"], t["exchange"], iv)
+            guardado = _CACHE_ACCIONES.get(clave)
+            if not forzar and guardado and ahora - guardado[0] < _CACHE_TTL:
+                resultados[clave] = guardado[1]
+            else:
+                faltantes.setdefault(iv, []).append(t)
+
+    # Solo se consulta lo que falta (al encender una temporalidad nueva, 1 llamada).
+    for iv, grupo in faltantes.items():
+        for l in consultar(grupo, [iv], pausa=0.4):
+            clave = (l.symbol, l.exchange, l.intervalo)
+            datos = l.como_dict()
+            if l.error:
+                # Si TradingView falla (p. ej. límite de consultas) pero teníamos
+                # un dato anterior, lo mostramos marcado en vez de un error rojo.
+                previo = _CACHE_ACCIONES.get(clave)
+                resultados[clave] = (
+                    dict(previo[1], error="", desactualizado=True) if previo else datos
+                )
+            else:
+                resultados[clave] = datos
+                _CACHE_ACCIONES[clave] = (ahora, datos)
+
+    lecturas = [
+        resultados[(t["symbol"], t["exchange"], iv)]
+        for t in cfg["tickers"] for iv in cfg["intervalos"]
+        if (t["symbol"], t["exchange"], iv) in resultados
+    ]
     return {
         "config": {
             "intervalos": cfg["intervalos"], "regla": cfg["regla"],
@@ -269,8 +309,8 @@ def acciones():
         ],
         "telegram_configurado": tg.configurado(),
         "lecturas": [
-            dict(l.como_dict(), ultima_registrada=estado.get(l.clave))
-            for l in lecturas
+            dict(d, ultima_registrada=estado.get(f"{d['symbol']}:{d['intervalo']}"))
+            for d in lecturas
         ],
     }
 

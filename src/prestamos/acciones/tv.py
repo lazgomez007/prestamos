@@ -5,9 +5,10 @@ temporalidad para pedir todos los tickers en una sola llamada.
 """
 from __future__ import annotations
 
+import json
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # Algunos antivirus (p. ej. Norton) interceptan HTTPS con su propio certificado.
 # truststore usa el almacén de certificados del sistema y evita el error SSL.
@@ -110,6 +111,31 @@ def detectar_exchange(symbol: str, screener: str = "america") -> str | None:
     return None
 
 
+def _mensaje_error(e: Exception) -> str:
+    """Traduce errores técnicos a algo entendible."""
+    if isinstance(e, json.JSONDecodeError):
+        return "TradingView no respondió (límite de consultas). Espera unos segundos."
+    nombre = type(e).__name__
+    if "SSL" in nombre:
+        return "Error SSL (antivirus interceptando HTTPS)."
+    if "Timeout" in nombre or "Connection" in nombre:
+        return "Sin conexión con TradingView."
+    return f"{nombre}: {e}"
+
+
+def _consultar_lote(screener: str, iv: str, simbolos: list[str], reintentos: int = 2):
+    """Llama a TradingView reintentando con espera creciente si falla."""
+    for intento in range(reintentos + 1):
+        try:
+            return get_multiple_analysis(screener=screener, interval=iv, symbols=simbolos)
+        except Exception as e:
+            if intento >= reintentos:
+                raise
+            espera = 1.5 * (intento + 1)
+            log.warning("Reintento %d en %.1fs (%s)", intento + 1, espera, e)
+            time.sleep(espera)
+
+
 def consultar(
     tickers: list[dict], intervalos: list[str], pausa: float = 1.0
 ) -> list[Lectura]:
@@ -135,14 +161,13 @@ def consultar(
         for screener, grupo in por_screener.items():
             simbolos = [f"{t['exchange']}:{t['symbol']}" for t in grupo]
             try:
-                res = get_multiple_analysis(
-                    screener=screener, interval=iv, symbols=simbolos
-                )
-            except Exception as e:  # red, timeout, etc.
+                res = _consultar_lote(screener, iv, simbolos)
+            except Exception as e:  # red, timeout, límite de consultas...
                 log.error("Error consultando %s %s: %s", screener, intervalo, e)
+                mensaje = _mensaje_error(e)
                 for t in grupo:
                     lecturas.append(Lectura(t["symbol"], t["exchange"], intervalo,
-                                            error=f"{type(e).__name__}: {e}"))
+                                            error=mensaje))
                 continue
 
             for t in grupo:

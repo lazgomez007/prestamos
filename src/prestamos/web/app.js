@@ -664,7 +664,7 @@ const CLASE_SENAL = {
   SELL: "s-venta", STRONG_SELL: "s-venta-fuerte",
 };
 
-async function mostrarAcciones() {
+async function mostrarAcciones(forzar = false) {
   $(".contenedor").classList.add("oculto");
   $("#vista-dashboard").classList.add("oculto");
   const vista = $("#vista-acciones");
@@ -677,7 +677,7 @@ async function mostrarAcciones() {
     <p style="color:var(--texto-suave)">Consultando TradingView…</p>`;
   $("#acc-volver").onclick = volverPrestamos;
   try {
-    const data = await api("GET", "/api/acciones");
+    const data = await api("GET", "/api/acciones" + (forzar ? "?forzar=true" : ""));
     renderAcciones(data);
   } catch (err) {
     vista.innerHTML = `
@@ -717,10 +717,13 @@ function renderAcciones(data) {
     const cambio = l.ultima_registrada && l.ultima_registrada !== l.recomendacion
       ? `<div class="cambio-senal" title="Cambió desde la última corrida del monitor">${escapar(l.ultima_registrada)} → ${escapar(l.recomendacion)}</div>`
       : "";
-    return `<td class="centro">
+    const viejo = l.desactualizado
+      ? `<div class="celda-sub" title="TradingView no respondió; se muestra la última lectura conocida">⏳ dato anterior</div>`
+      : "";
+    return `<td class="centro${l.desactualizado ? " celda-vieja" : ""}">
       <span class="senal ${cls}">${escapar(l.etiqueta)}</span>
       <div class="celda-sub" title="Indicadores en compra / neutral / venta">${l.compra} / ${l.neutral} / ${l.venta}</div>
-      ${cambio}
+      ${cambio}${viejo}
     </td>`;
   };
 
@@ -793,7 +796,7 @@ function renderAcciones(data) {
       monitor — eso es justo lo que te avisaría por Telegram.
     </p>`;
   $("#acc-volver").onclick = volverPrestamos;
-  $("#acc-refrescar").onclick = mostrarAcciones;
+  $("#acc-refrescar").onclick = () => mostrarAcciones(true);   // ignora la caché
   $("#acc-agregar").onclick = agregarAccion;
   $("#acc-symbol").addEventListener("keydown", (e) => {
     if (e.key === "Enter") agregarAccion();
@@ -813,11 +816,15 @@ async function alternarIntervalo(clave) {
     avisar("Debe quedar al menos una temporalidad.", true);
     return;
   }
+  // Bloquea los chips mientras carga: evita ráfagas de consultas a TradingView.
+  const chips = document.querySelectorAll(".chip-intervalo");
+  chips.forEach((c) => { c.disabled = true; c.style.opacity = ".5"; });
   try {
     await api("PUT", "/api/acciones/intervalos", { intervalos: [...actuales] });
-    mostrarAcciones();
+    await mostrarAcciones();          // usa la caché: solo pide lo que falta
   } catch (err) {
     avisar(err.message, true);
+    chips.forEach((c) => { c.disabled = false; c.style.opacity = ""; });
   }
 }
 
@@ -911,7 +918,7 @@ function renderDashboard(data) {
 /* ===== Arranque ===== */
 async function init() {
   $("#btn-dashboard").addEventListener("click", mostrarDashboard);
-  $("#btn-acciones").addEventListener("click", mostrarAcciones);
+  $("#btn-acciones").addEventListener("click", () => mostrarAcciones());
   $("#btn-nuevo").addEventListener("click", () => abrirFormulario(null));
   $("#buscar").addEventListener("input", (e) => { estado.filtro = e.target.value; renderLista(); });
   $("#filtro-fuente").addEventListener("change", (e) => { estado.filtroFuente = e.target.value; renderLista(); });
