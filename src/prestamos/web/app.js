@@ -583,6 +583,7 @@ async function mostrarDashboard() {
   }
   renderDashboard(data);
   $(".contenedor").classList.add("oculto");
+  $("#vista-acciones").classList.add("oculto");
   $("#vista-dashboard").classList.remove("oculto");
   dibujarLinea(data.meses);  // tras mostrar, para medir el ancho real
 }
@@ -647,8 +648,112 @@ function dibujarLinea(meses) {
 }
 
 function ocultarDashboard() {
+  volverPrestamos();
+}
+
+/* ===== Cambio de vistas ===== */
+function volverPrestamos() {
   $("#vista-dashboard").classList.add("oculto");
+  $("#vista-acciones").classList.add("oculto");
   $(".contenedor").classList.remove("oculto");
+}
+
+/* ===== Acciones (análisis técnico) ===== */
+const CLASE_SENAL = {
+  STRONG_BUY: "s-compra-fuerte", BUY: "s-compra", NEUTRAL: "s-neutral",
+  SELL: "s-venta", STRONG_SELL: "s-venta-fuerte",
+};
+
+async function mostrarAcciones() {
+  $(".contenedor").classList.add("oculto");
+  $("#vista-dashboard").classList.add("oculto");
+  const vista = $("#vista-acciones");
+  vista.classList.remove("oculto");
+  vista.innerHTML = `
+    <div class="dash-cab">
+      <button class="btn" id="acc-volver">← Préstamos</button>
+      <h2>Acciones — análisis técnico</h2>
+    </div>
+    <p style="color:var(--texto-suave)">Consultando TradingView…</p>`;
+  $("#acc-volver").onclick = volverPrestamos;
+  try {
+    const data = await api("GET", "/api/acciones");
+    renderAcciones(data);
+  } catch (err) {
+    vista.innerHTML = `
+      <div class="dash-cab">
+        <button class="btn" id="acc-volver2">← Préstamos</button>
+        <h2>Acciones — análisis técnico</h2>
+      </div>
+      <p style="color:var(--rojo)">No se pudo consultar: ${escapar(err.message)}</p>`;
+    $("#acc-volver2").onclick = volverPrestamos;
+  }
+}
+
+function renderAcciones(data) {
+  const cfg = data.config;
+  const porTicker = {};
+  data.lecturas.forEach((l) => {
+    (porTicker[l.symbol] = porTicker[l.symbol] || []).push(l);
+  });
+
+  const filas = data.lecturas
+    .map((l) => {
+      if (l.error) {
+        return `<tr>
+          <td class="izq"><b>${escapar(l.symbol)}</b></td>
+          <td class="centro">${escapar(l.exchange)}</td>
+          <td class="centro">${escapar(l.intervalo)}</td>
+          <td class="centro" colspan="3" style="color:var(--rojo)">${escapar(l.error)}</td>
+          <td class="centro">—</td>
+        </tr>`;
+      }
+      const cls = CLASE_SENAL[l.recomendacion] || "s-neutral";
+      const cambio = l.ultima_registrada && l.ultima_registrada !== l.recomendacion
+        ? `<span title="Señal registrada anteriormente">${escapar(l.ultima_registrada)} →</span> `
+        : "";
+      return `<tr>
+        <td class="izq"><b>${escapar(l.symbol)}</b></td>
+        <td class="centro">${escapar(l.exchange)}</td>
+        <td class="centro">${escapar(l.intervalo)}</td>
+        <td class="centro"><span class="senal ${cls}">${escapar(l.etiqueta)}</span></td>
+        <td class="centro">${l.compra} / ${l.neutral} / ${l.venta}</td>
+        <td class="centro">${cambio || "—"}${escapar(l.ultima_registrada || "sin registro")}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const tg = data.telegram_configurado
+    ? `<span class="ok-chip">Telegram configurado ✔</span>`
+    : `<span class="warn-chip">Telegram sin configurar (define TELEGRAM_TOKEN y TELEGRAM_CHAT_ID)</span>`;
+
+  $("#vista-acciones").innerHTML = `
+    <div class="dash-cab">
+      <button class="btn" id="acc-volver">← Préstamos</button>
+      <h2>Acciones — análisis técnico</h2>
+      <span class="dash-hint">
+        Temporalidades: <b>${cfg.intervalos.join(", ")}</b> · Regla: <b>${escapar(cfg.regla)}</b>
+      </span>
+      <button class="btn btn-primario" id="acc-refrescar">↻ Actualizar</button>
+    </div>
+    <p style="margin:0 0 12px">${tg}</p>
+    <div class="tabla-wrap">
+      <table class="crono">
+        <thead><tr>
+          <th class="izq">Ticker</th><th class="centro">Mercado</th><th class="centro">Temporalidad</th>
+          <th class="centro">Señal</th><th class="centro">Compra / Neutral / Venta</th>
+          <th class="centro">Última registrada</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+    <p class="dash-hint" style="margin-top:14px">
+      El semáforo agrega ~26 indicadores (osciladores + medias móviles), igual que
+      el resumen técnico de Investing.com. El monitor automático avisa por Telegram
+      solo cuando la señal <b>cambia</b>.
+    </p>`;
+  $("#acc-volver").onclick = volverPrestamos;
+  $("#acc-refrescar").onclick = mostrarAcciones;
 }
 
 function renderDashboard(data) {
@@ -712,6 +817,7 @@ function renderDashboard(data) {
 /* ===== Arranque ===== */
 async function init() {
   $("#btn-dashboard").addEventListener("click", mostrarDashboard);
+  $("#btn-acciones").addEventListener("click", mostrarAcciones);
   $("#btn-nuevo").addEventListener("click", () => abrirFormulario(null));
   $("#buscar").addEventListener("input", (e) => { estado.filtro = e.target.value; renderLista(); });
   $("#filtro-fuente").addEventListener("change", (e) => { estado.filtroFuente = e.target.value; renderLista(); });

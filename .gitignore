@@ -12,3 +12,6 @@ __pycache__/
 # Base de datos local y archivos exportados
 *.db
 *.xlsx
+
+# Log del monitor de acciones (el state.json SÍ se versiona: lo usa GitHub Actions)
+acciones/monitor.log

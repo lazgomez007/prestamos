@@ -1,0 +1,31 @@
+# Configuración del monitor de análisis técnico (TradingView / tipo Investing.com)
+
+# Tickers a vigilar. El "exchange" y "screener" deben coincidir con TradingView
+# (míralo en la URL de TradingView, ej. NASDAQ:META -> exchange NASDAQ).
+tickers:
+  - symbol: SPY
+    exchange: AMEX
+    screener: america
+  - symbol: META
+    exchange: NASDAQ
+    screener: america
+  - symbol: SPCX
+    exchange: NASDAQ
+    screener: america
+  - symbol: NVDA
+    exchange: NASDAQ
+    screener: america
+
+# Temporalidades a vigilar.
+# Disponibles: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 1D, 1W, 1M
+intervalos:
+  - "1D"
+  - "1h"
+
+# Regla de alerta:
+#   any_change  -> avisa ante cualquier cambio (BUY -> NEUTRAL, etc.)
+#   only_strong -> avisa solo cuando entra o sale de STRONG_BUY / STRONG_SELL
+regla: any_change
+
+# Telegram: el token y el chat_id se leen de variables de entorno
+# (TELEGRAM_TOKEN y TELEGRAM_CHAT_ID). Nunca los pongas en este archivo.

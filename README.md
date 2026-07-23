@@ -89,6 +89,57 @@ tests/  test_calculo.py · test_api.py
 archivo/             # prototipo inicial en PowerShell (histórico)
 ```
 
+## 📈 Acciones — alertas de análisis técnico
+
+Además de los préstamos, la app incluye una pestaña **Acciones** que muestra el
+**resumen técnico** de tus tickers (el semáforo `Compra fuerte / Compra / Neutral /
+Venta / Venta fuerte`, equivalente al de Investing.com) usando la librería
+gratuita `tradingview-ta`.
+
+También hay un **monitor automático** que avisa por **Telegram solo cuando la
+señal cambia**.
+
+### Configurar tickers y temporalidades
+Edita [`acciones/config.yaml`](acciones/config.yaml):
+
+```yaml
+tickers:
+  - {symbol: SPY,  exchange: AMEX,   screener: america}
+  - {symbol: META, exchange: NASDAQ, screener: america}
+intervalos: ["1D", "1h"]     # 1m 5m 15m 30m 1h 2h 4h 1D 1W 1M
+regla: any_change            # any_change | only_strong
+```
+
+- `any_change`: avisa ante cualquier cambio (BUY → NEUTRAL, etc.).
+- `only_strong`: avisa solo cuando entra o sale de `STRONG_BUY` / `STRONG_SELL`.
+
+El último estado se guarda en `acciones/state.json` (clave `"SIMBOLO:INTERVALO"`).
+
+### Configurar Telegram
+1. Habla con **@BotFather** en Telegram → `/newbot` → te da un **token**.
+2. Habla con **@userinfobot** → te da tu **chat id**.
+3. Define las variables de entorno (nunca las guardes en el repo):
+
+```powershell
+setx TELEGRAM_TOKEN "12345:AAxxxxxx"
+setx TELEGRAM_CHAT_ID "123456789"
+```
+
+### Ejecutar el monitor
+
+```powershell
+.venv\Scripts\python.exe monitor_acciones.py
+```
+
+Registra todo en `acciones/monitor.log`. Para que corra solo:
+- **PC local:** Programador de tareas de Windows → ejecuta ese comando cada hora.
+- **En la nube:** el workflow [`.github/workflows/monitor-acciones.yml`](.github/workflows/monitor-acciones.yml)
+  ya está listo (cron cada hora). Guarda `TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID`
+  como *repository secrets* en GitHub y el workflow persiste `state.json` solo.
+
+> Nota: si tu antivirus intercepta HTTPS (p. ej. Norton), la app usa `truststore`
+> para leer el almacén de certificados de Windows y evitar errores SSL.
+
 ## 🗄️ Dónde se guardan los datos
 
 En `C:\Users\<tu_usuario>\.gestor_prestamos\prestamos.db`.

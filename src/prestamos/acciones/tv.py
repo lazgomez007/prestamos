@@ -1,0 +1,132 @@
+"""Consulta del resumen técnico de TradingView (semáforo tipo Investing.com).
+
+Usa la librería `tradingview-ta` (gratis, sin API key). Agrupa las consultas por
+temporalidad para pedir todos los tickers en una sola llamada.
+"""
+from __future__ import annotations
+
+import logging
+import time
+from dataclasses import dataclass, field
+
+# Algunos antivirus (p. ej. Norton) interceptan HTTPS con su propio certificado.
+# truststore usa el almacén de certificados del sistema y evita el error SSL.
+try:  # pragma: no cover - depende del entorno
+    import truststore
+
+    truststore.inject_into_ssl()
+except Exception:  # pragma: no cover
+    pass
+
+from tradingview_ta import Interval, get_multiple_analysis
+
+log = logging.getLogger(__name__)
+
+INTERVALOS = {
+    "1m": Interval.INTERVAL_1_MINUTE,
+    "5m": Interval.INTERVAL_5_MINUTES,
+    "15m": Interval.INTERVAL_15_MINUTES,
+    "30m": Interval.INTERVAL_30_MINUTES,
+    "1h": Interval.INTERVAL_1_HOUR,
+    "2h": Interval.INTERVAL_2_HOURS,
+    "4h": Interval.INTERVAL_4_HOURS,
+    "1D": Interval.INTERVAL_1_DAY,
+    "1W": Interval.INTERVAL_1_WEEK,
+    "1M": Interval.INTERVAL_1_MONTH,
+}
+
+SENALES = ["STRONG_BUY", "BUY", "NEUTRAL", "SELL", "STRONG_SELL"]
+SENALES_FUERTES = {"STRONG_BUY", "STRONG_SELL"}
+
+ETIQUETAS = {
+    "STRONG_BUY": "Compra fuerte",
+    "BUY": "Compra",
+    "NEUTRAL": "Neutral",
+    "SELL": "Venta",
+    "STRONG_SELL": "Venta fuerte",
+}
+
+
+@dataclass
+class Lectura:
+    """Resultado del resumen técnico de un ticker en una temporalidad."""
+    symbol: str
+    exchange: str
+    intervalo: str
+    recomendacion: str | None = None
+    compra: int = 0
+    neutral: int = 0
+    venta: int = 0
+    error: str = ""
+
+    @property
+    def clave(self) -> str:
+        return f"{self.symbol}:{self.intervalo}"
+
+    @property
+    def etiqueta(self) -> str:
+        return ETIQUETAS.get(self.recomendacion or "", "—")
+
+    def como_dict(self) -> dict:
+        return {
+            "symbol": self.symbol, "exchange": self.exchange,
+            "intervalo": self.intervalo, "recomendacion": self.recomendacion,
+            "etiqueta": self.etiqueta, "compra": self.compra,
+            "neutral": self.neutral, "venta": self.venta, "error": self.error,
+        }
+
+
+def consultar(
+    tickers: list[dict], intervalos: list[str], pausa: float = 1.0
+) -> list[Lectura]:
+    """Consulta el resumen técnico de cada (ticker, intervalo).
+
+    ``tickers``: [{"symbol": "SPY", "exchange": "AMEX", "screener": "america"}, ...]
+    Devuelve una lista de :class:`Lectura` (con ``error`` si algo falló).
+    """
+    lecturas: list[Lectura] = []
+    for intervalo in intervalos:
+        iv = INTERVALOS.get(intervalo)
+        if iv is None:
+            log.error("Intervalo no soportado: %s", intervalo)
+            for t in tickers:
+                lecturas.append(Lectura(t["symbol"], t["exchange"], intervalo,
+                                        error=f"intervalo no soportado: {intervalo}"))
+            continue
+
+        por_screener: dict[str, list[dict]] = {}
+        for t in tickers:
+            por_screener.setdefault(t.get("screener", "america"), []).append(t)
+
+        for screener, grupo in por_screener.items():
+            simbolos = [f"{t['exchange']}:{t['symbol']}" for t in grupo]
+            try:
+                res = get_multiple_analysis(
+                    screener=screener, interval=iv, symbols=simbolos
+                )
+            except Exception as e:  # red, timeout, etc.
+                log.error("Error consultando %s %s: %s", screener, intervalo, e)
+                for t in grupo:
+                    lecturas.append(Lectura(t["symbol"], t["exchange"], intervalo,
+                                            error=f"{type(e).__name__}: {e}"))
+                continue
+
+            for t in grupo:
+                analisis = res.get(f"{t['exchange']}:{t['symbol']}")
+                resumen = getattr(analisis, "summary", None) if analisis else None
+                if not resumen:
+                    log.warning("Sin datos para %s:%s (%s)",
+                                t["exchange"], t["symbol"], intervalo)
+                    lecturas.append(Lectura(t["symbol"], t["exchange"], intervalo,
+                                            error="sin datos (símbolo o mercado)"))
+                    continue
+                lecturas.append(Lectura(
+                    symbol=t["symbol"], exchange=t["exchange"], intervalo=intervalo,
+                    recomendacion=resumen.get("RECOMMENDATION"),
+                    compra=int(resumen.get("BUY", 0)),
+                    neutral=int(resumen.get("NEUTRAL", 0)),
+                    venta=int(resumen.get("SELL", 0)),
+                ))
+            if pausa:
+                time.sleep(pausa)
+    return lecturas

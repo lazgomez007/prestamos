@@ -246,6 +246,32 @@ def fuentes():
     return {"fuentes": FUENTES}
 
 
+@app.get("/api/acciones")
+def acciones():
+    """Semáforo técnico en vivo de los tickers configurados."""
+    from ..acciones import telegram as tg
+    from ..acciones.config import cargar_config, cargar_estado
+    from ..acciones.tv import consultar
+
+    try:
+        cfg = cargar_config()
+    except FileNotFoundError as e:
+        raise HTTPException(400, str(e))
+    estado = cargar_estado()
+    lecturas = consultar(cfg["tickers"], cfg["intervalos"], pausa=0.5)
+    return {
+        "config": {
+            "intervalos": cfg["intervalos"], "regla": cfg["regla"],
+            "tickers": cfg["tickers"],
+        },
+        "telegram_configurado": tg.configurado(),
+        "lecturas": [
+            dict(l.como_dict(), ultima_registrada=estado.get(l.clave))
+            for l in lecturas
+        ],
+    }
+
+
 @app.get("/api/dashboard")
 def dashboard():
     repo = Repositorio()

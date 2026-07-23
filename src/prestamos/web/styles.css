@@ -392,6 +392,24 @@ table.crono td.mio { color: var(--verde); }
 .dash-tabla { max-height: 420px; }
 table.crono tr.mes-actual td { background: var(--ambar-bg); font-weight: 650; }
 
+/* ===== Señales de análisis técnico ===== */
+.senal {
+  display: inline-block; padding: 4px 12px; border-radius: 100px;
+  font-size: .78rem; font-weight: 700; white-space: nowrap;
+}
+.senal.s-compra-fuerte { background: #1f9d57; color: #fff; }
+.senal.s-compra { background: var(--verde-bg); color: var(--verde); }
+.senal.s-neutral { background: var(--bg-suave); color: var(--texto-suave); }
+.senal.s-venta { background: var(--rojo-bg); color: var(--rojo); }
+.senal.s-venta-fuerte { background: #c0392b; color: #fff; }
+
+.ok-chip, .warn-chip {
+  display: inline-block; font-size: .78rem; font-weight: 600;
+  padding: 4px 12px; border-radius: 100px;
+}
+.ok-chip { background: var(--verde-bg); color: var(--verde); }
+.warn-chip { background: var(--ambar-bg); color: var(--ambar); }
+
 .oculto { display: none !important; }
 
 /* Scrollbars suaves */
