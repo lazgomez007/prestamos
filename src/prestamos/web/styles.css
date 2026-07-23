@@ -410,6 +410,13 @@ table.crono tr.mes-actual td { background: var(--ambar-bg); font-weight: 650; }
 .ok-chip { background: var(--verde-bg); color: var(--verde); }
 .warn-chip { background: var(--ambar-bg); color: var(--ambar); }
 
+.sin-dato { color: var(--texto-suave); font-size: .85rem; }
+.cambio-senal {
+  font-weight: 700; color: var(--ambar);
+  background: var(--ambar-bg); padding: 3px 10px; border-radius: 100px;
+  white-space: nowrap;
+}
+
 /* Gestión de tickers */
 .acc-gestion { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .acc-gestion input, .acc-gestion select {

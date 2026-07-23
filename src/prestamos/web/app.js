@@ -709,16 +709,21 @@ function renderAcciones(data) {
         </tr>`;
       }
       const cls = CLASE_SENAL[l.recomendacion] || "s-neutral";
-      const cambio = l.ultima_registrada && l.ultima_registrada !== l.recomendacion
-        ? `<span title="Señal registrada anteriormente">${escapar(l.ultima_registrada)} →</span> `
-        : "";
+      let ultima;
+      if (!l.ultima_registrada) {
+        ultima = `<span class="sin-dato">sin registro</span>`;
+      } else if (l.ultima_registrada === l.recomendacion) {
+        ultima = `<span class="sin-dato">${escapar(l.ultima_registrada)} (sin cambio)</span>`;
+      } else {
+        ultima = `<span class="cambio-senal" title="Cambió desde la última corrida del monitor">${escapar(l.ultima_registrada)} → ${escapar(l.recomendacion)}</span>`;
+      }
       return `<tr>
         <td class="izq"><b>${escapar(l.symbol)}</b></td>
         <td class="centro">${escapar(l.exchange)}</td>
         <td class="centro">${escapar(l.intervalo)}</td>
         <td class="centro"><span class="senal ${cls}">${escapar(l.etiqueta)}</span></td>
         <td class="centro">${l.compra} / ${l.neutral} / ${l.venta}</td>
-        <td class="centro">${cambio || "—"}${escapar(l.ultima_registrada || "sin registro")}</td>
+        <td class="centro">${ultima}</td>
       </tr>`;
     })
     .join("");
