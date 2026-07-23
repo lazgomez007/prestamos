@@ -77,6 +77,39 @@ def test_config_del_proyecto_es_valida():
         assert t["exchange"] and t["screener"]
 
 
+def test_agregar_y_quitar_ticker():
+    from prestamos.acciones.config import agregar_ticker, quitar_ticker
+    cfg = {"tickers": [{"symbol": "SPY", "exchange": "AMEX", "screener": "america"}]}
+    assert agregar_ticker(cfg, "aapl", "nasdaq") is True      # normaliza a mayúsculas
+    assert cfg["tickers"][-1] == {"symbol": "AAPL", "exchange": "NASDAQ", "screener": "america"}
+    assert agregar_ticker(cfg, "AAPL", "NASDAQ") is False     # duplicado
+    assert quitar_ticker(cfg, "aapl") is True
+    assert [t["symbol"] for t in cfg["tickers"]] == ["SPY"]
+    assert quitar_ticker(cfg, "NOEXISTE") is False
+
+
+def test_guardar_y_recargar_config():
+    from prestamos.acciones.config import cargar_config, guardar_config
+    ruta = Path(tempfile.mkdtemp()) / "config.yaml"
+    cfg = {
+        "tickers": [{"symbol": "NVDA", "exchange": "NASDAQ", "screener": "america"}],
+        "intervalos": ["1D"], "regla": "only_strong",
+    }
+    guardar_config(cfg, ruta)
+    assert "# Configuración" in ruta.read_text(encoding="utf-8")  # conserva la ayuda
+    recargada = cargar_config(ruta)
+    assert recargada["tickers"] == cfg["tickers"]
+    assert recargada["regla"] == "only_strong"
+
+
+def test_limpiar_estado_de_simbolo():
+    from prestamos.acciones.config import guardar_estado, limpiar_estado_de
+    ruta = Path(tempfile.mkdtemp()) / "state.json"
+    guardar_estado({"SPY:1D": "BUY", "SPY:1h": "SELL", "NVDA:1D": "BUY"}, ruta)
+    limpiar_estado_de("spy", ruta)
+    assert cargar_estado(ruta) == {"NVDA:1D": "BUY"}
+
+
 def test_estado_ida_y_vuelta():
     ruta = Path(tempfile.mkdtemp()) / "state.json"
     guardar_estado({"SPY:1D": "BUY"}, ruta)

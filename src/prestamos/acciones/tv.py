@@ -76,6 +76,33 @@ class Lectura:
         }
 
 
+# Bolsas de EE.UU. (todas con sede en Nueva York). NASDAQ y NYSE son distintas;
+# AMEX es la antigua American Stock Exchange (hoy NYSE American).
+EXCHANGES_US = ["NASDAQ", "NYSE", "AMEX"]
+
+
+def detectar_exchange(symbol: str, screener: str = "america") -> str | None:
+    """Averigua en qué bolsa de EE.UU. cotiza un símbolo.
+
+    Prueba NASDAQ / NYSE / AMEX en una sola llamada. Devuelve el exchange donde
+    hay datos, o None si no se encontró.
+    """
+    symbol = symbol.strip().upper()
+    simbolos = [f"{e}:{symbol}" for e in EXCHANGES_US]
+    try:
+        res = get_multiple_analysis(
+            screener=screener, interval=Interval.INTERVAL_1_DAY, symbols=simbolos
+        )
+    except Exception as e:
+        log.error("Error buscando %s: %s", symbol, e)
+        return None
+    for exch in EXCHANGES_US:
+        analisis = res.get(f"{exch}:{symbol}")
+        if analisis is not None and getattr(analisis, "summary", None):
+            return exch
+    return None
+
+
 def consultar(
     tickers: list[dict], intervalos: list[str], pausa: float = 1.0
 ) -> list[Lectura]:

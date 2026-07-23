@@ -410,6 +410,29 @@ table.crono tr.mes-actual td { background: var(--ambar-bg); font-weight: 650; }
 .ok-chip { background: var(--verde-bg); color: var(--verde); }
 .warn-chip { background: var(--ambar-bg); color: var(--ambar); }
 
+/* Gestión de tickers */
+.acc-gestion { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.acc-gestion input, .acc-gestion select {
+  font: inherit; padding: 8px 11px; border: 1px solid var(--borde);
+  border-radius: var(--radio-sm); background: var(--bg-suave); color: var(--texto);
+}
+.acc-gestion input { width: 170px; text-transform: uppercase; }
+.acc-gestion input:focus, .acc-gestion select:focus { outline: none; border-color: var(--acento); }
+
+.acc-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip-ticker {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-suave); border: 1px solid var(--borde);
+  border-radius: 100px; padding: 5px 8px 5px 13px; font-weight: 600; font-size: .86rem;
+}
+.chip-ticker small { color: var(--texto-suave); font-weight: 500; }
+.chip-ticker button {
+  border: none; background: none; cursor: pointer; color: var(--texto-suave);
+  font-size: 1.1rem; line-height: 1; padding: 0 4px; border-radius: 100px;
+  transition: all var(--trans);
+}
+.chip-ticker button:hover { color: var(--rojo); background: var(--rojo-bg); }
+
 .oculto { display: none !important; }
 
 /* Scrollbars suaves */

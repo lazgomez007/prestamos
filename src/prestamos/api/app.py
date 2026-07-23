@@ -272,6 +272,48 @@ def acciones():
     }
 
 
+@app.post("/api/acciones/tickers")
+def agregar_accion(data: dict = Body(...)):
+    """Agrega un ticker. Si no se indica mercado, se detecta (NASDAQ/NYSE/AMEX)."""
+    from ..acciones.config import agregar_ticker, cargar_config, guardar_config
+    from ..acciones.tv import EXCHANGES_US, detectar_exchange
+
+    symbol = (data.get("symbol") or "").strip().upper()
+    if not symbol:
+        raise HTTPException(400, "Indica el símbolo (ej. AAPL).")
+    exchange = (data.get("exchange") or "").strip().upper()
+
+    if exchange and exchange not in EXCHANGES_US:
+        raise HTTPException(400, f"Mercado no permitido. Usa: {', '.join(EXCHANGES_US)}.")
+    if not exchange:
+        exchange = detectar_exchange(symbol)
+        if not exchange:
+            raise HTTPException(
+                404, f"No se encontró '{symbol}' en NASDAQ, NYSE ni AMEX. "
+                     "Revisa el símbolo en TradingView."
+            )
+
+    cfg = cargar_config()
+    if not agregar_ticker(cfg, symbol, exchange):
+        raise HTTPException(400, f"'{symbol}' ya está en la lista.")
+    guardar_config(cfg)
+    return {"ok": True, "symbol": symbol, "exchange": exchange}
+
+
+@app.delete("/api/acciones/tickers/{symbol}")
+def quitar_accion(symbol: str):
+    from ..acciones.config import (
+        cargar_config, guardar_config, limpiar_estado_de, quitar_ticker,
+    )
+
+    cfg = cargar_config()
+    if not quitar_ticker(cfg, symbol):
+        raise HTTPException(404, f"'{symbol}' no está en la lista.")
+    guardar_config(cfg)
+    limpiar_estado_de(symbol)
+    return {"ok": True}
+
+
 @app.get("/api/dashboard")
 def dashboard():
     repo = Repositorio()

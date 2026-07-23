@@ -737,6 +737,23 @@ function renderAcciones(data) {
       <button class="btn btn-primario" id="acc-refrescar">↻ Actualizar</button>
     </div>
     <p style="margin:0 0 12px">${tg}</p>
+    <div class="acc-gestion">
+      <input id="acc-symbol" placeholder="Ticker (ej. AAPL)" maxlength="12" autocomplete="off">
+      <select id="acc-exchange">
+        <option value="">Detectar mercado</option>
+        <option value="NASDAQ">NASDAQ</option>
+        <option value="NYSE">NYSE</option>
+        <option value="AMEX">AMEX</option>
+      </select>
+      <button class="btn btn-primario" id="acc-agregar">+ Agregar</button>
+      <span class="dash-hint">Solo bolsas de EE.UU. (Nueva York)</span>
+    </div>
+    <div class="acc-chips">${
+      cfg.tickers.map((t) =>
+        `<span class="chip-ticker">${escapar(t.symbol)} <small>${escapar(t.exchange)}</small>
+          <button data-sym="${escapar(t.symbol)}" title="Quitar de la lista">×</button></span>`
+      ).join("")
+    }</div>
     <div class="tabla-wrap">
       <table class="crono">
         <thead><tr>
@@ -754,6 +771,42 @@ function renderAcciones(data) {
     </p>`;
   $("#acc-volver").onclick = volverPrestamos;
   $("#acc-refrescar").onclick = mostrarAcciones;
+  $("#acc-agregar").onclick = agregarAccion;
+  $("#acc-symbol").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") agregarAccion();
+  });
+  document.querySelectorAll(".chip-ticker button").forEach((b) =>
+    b.addEventListener("click", () => quitarAccion(b.dataset.sym))
+  );
+}
+
+async function agregarAccion() {
+  const symbol = $("#acc-symbol").value.trim().toUpperCase();
+  if (!symbol) { avisar("Escribe un ticker (ej. AAPL).", true); return; }
+  const exchange = $("#acc-exchange").value;
+  const btn = $("#acc-agregar");
+  btn.disabled = true;
+  btn.textContent = exchange ? "Agregando…" : "Buscando mercado…";
+  try {
+    const r = await api("POST", "/api/acciones/tickers", { symbol, exchange });
+    avisar(`${r.symbol} agregado (${r.exchange}).`);
+    mostrarAcciones();
+  } catch (err) {
+    avisar(err.message, true);
+    btn.disabled = false;
+    btn.textContent = "+ Agregar";
+  }
+}
+
+async function quitarAccion(symbol) {
+  if (!confirm(`¿Quitar ${symbol} de la lista de seguimiento?`)) return;
+  try {
+    await api("DELETE", `/api/acciones/tickers/${encodeURIComponent(symbol)}`);
+    avisar(`${symbol} quitado.`);
+    mostrarAcciones();
+  } catch (err) {
+    avisar(err.message, true);
+  }
 }
 
 function renderDashboard(data) {
