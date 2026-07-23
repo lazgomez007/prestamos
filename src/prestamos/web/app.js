@@ -697,35 +697,41 @@ function renderAcciones(data) {
     (porTicker[l.symbol] = porTicker[l.symbol] || []).push(l);
   });
 
-  const filas = data.lecturas
-    .map((l) => {
-      if (l.error) {
-        return `<tr>
-          <td class="izq"><b>${escapar(l.symbol)}</b></td>
-          <td class="centro">${escapar(l.exchange)}</td>
-          <td class="centro">${escapar(l.intervalo)}</td>
-          <td class="centro" colspan="3" style="color:var(--rojo)">${escapar(l.error)}</td>
-          <td class="centro">—</td>
-        </tr>`;
-      }
-      const cls = CLASE_SENAL[l.recomendacion] || "s-neutral";
-      let ultima;
-      if (!l.ultima_registrada) {
-        ultima = `<span class="sin-dato">sin registro</span>`;
-      } else if (l.ultima_registrada === l.recomendacion) {
-        ultima = `<span class="sin-dato">${escapar(l.ultima_registrada)} (sin cambio)</span>`;
-      } else {
-        ultima = `<span class="cambio-senal" title="Cambió desde la última corrida del monitor">${escapar(l.ultima_registrada)} → ${escapar(l.recomendacion)}</span>`;
-      }
+  // Una fila por ticker y una columna por temporalidad.
+  const porSimbolo = {};
+  data.lecturas.forEach((l) => {
+    (porSimbolo[l.symbol] = porSimbolo[l.symbol] || {})[l.intervalo] = l;
+  });
+
+  const celda = (l) => {
+    if (!l) return `<td class="centro sin-dato">—</td>`;
+    if (l.error) {
+      return `<td class="centro" style="color:var(--rojo);font-size:.8rem">${escapar(l.error)}</td>`;
+    }
+    const cls = CLASE_SENAL[l.recomendacion] || "s-neutral";
+    const cambio = l.ultima_registrada && l.ultima_registrada !== l.recomendacion
+      ? `<div class="cambio-senal" title="Cambió desde la última corrida del monitor">${escapar(l.ultima_registrada)} → ${escapar(l.recomendacion)}</div>`
+      : "";
+    return `<td class="centro">
+      <span class="senal ${cls}">${escapar(l.etiqueta)}</span>
+      <div class="celda-sub" title="Indicadores en compra / neutral / venta">${l.compra} / ${l.neutral} / ${l.venta}</div>
+      ${cambio}
+    </td>`;
+  };
+
+  const filas = cfg.tickers
+    .map((t) => {
+      const porIntervalo = porSimbolo[t.symbol] || {};
       return `<tr>
-        <td class="izq"><b>${escapar(l.symbol)}</b></td>
-        <td class="centro">${escapar(l.exchange)}</td>
-        <td class="centro">${escapar(l.intervalo)}</td>
-        <td class="centro"><span class="senal ${cls}">${escapar(l.etiqueta)}</span></td>
-        <td class="centro">${l.compra} / ${l.neutral} / ${l.venta}</td>
-        <td class="centro">${ultima}</td>
+        <td class="izq"><b>${escapar(t.symbol)}</b></td>
+        <td class="centro sin-dato">${escapar(t.exchange)}</td>
+        ${cfg.intervalos.map((iv) => celda(porIntervalo[iv])).join("")}
       </tr>`;
     })
+    .join("");
+
+  const encabezadosIntervalo = cfg.intervalos
+    .map((iv) => `<th class="centro">${escapar(iv)}</th>`)
     .join("");
 
   const tg = data.telegram_configurado
@@ -762,17 +768,18 @@ function renderAcciones(data) {
     <div class="tabla-wrap">
       <table class="crono">
         <thead><tr>
-          <th class="izq">Ticker</th><th class="centro">Mercado</th><th class="centro">Temporalidad</th>
-          <th class="centro">Señal</th><th class="centro">Compra / Neutral / Venta</th>
-          <th class="centro">Última registrada</th>
+          <th class="izq">Ticker</th><th class="centro">Mercado</th>
+          ${encabezadosIntervalo}
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
     </div>
     <p class="dash-hint" style="margin-top:14px">
-      El semáforo agrega ~26 indicadores (osciladores + medias móviles), igual que
-      el resumen técnico de Investing.com. El monitor automático avisa por Telegram
-      solo cuando la señal <b>cambia</b>.
+      Cada columna es una <b>temporalidad</b>. Bajo la señal, los números son los
+      indicadores en <b>compra / neutral / venta</b> (el semáforo agrega ~26
+      osciladores y medias móviles, igual que el resumen técnico de Investing.com).
+      La etiqueta ámbar marca que la señal <b>cambió</b> desde la última corrida del
+      monitor — eso es justo lo que te avisaría por Telegram.
     </p>`;
   $("#acc-volver").onclick = volverPrestamos;
   $("#acc-refrescar").onclick = mostrarAcciones;
