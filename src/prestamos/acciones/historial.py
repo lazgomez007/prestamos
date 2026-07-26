@@ -45,23 +45,31 @@ def guardar(hist: dict[str, list[dict]], ruta: Path | None = None) -> None:
 
 
 def registrar(lecturas, ruta: Path | None = None, ahora: datetime | None = None) -> int:
-    """Agrega un punto por cada señal que cambió respecto al último registro.
+    """Registra la señal para la línea de tiempo.
 
-    Devuelve cuántas inflexiones nuevas se guardaron.
+    Guarda un punto cuando: (a) es la primera lectura, (b) cambió la categoría
+    (inflexión, marcada con ``c=True``), o (c) es un nuevo día (snapshot diario
+    de la aguja aunque no cambie la categoría). Así la línea muestra el
+    movimiento y a la vez marca las inflexiones. Devuelve cuántos puntos agregó.
     """
     ahora = ahora or datetime.now()
+    hoy = ahora.date().isoformat()
     hist = cargar(ruta)
     nuevos = 0
     for l in lecturas:
         if l.recomendacion is None:      # error / sin datos: no registrar
             continue
         serie = hist.setdefault(l.clave, [])
-        if serie and serie[-1]["r"] == l.recomendacion:
-            continue                     # sin cambio: no duplicar
+        ultimo = serie[-1] if serie else None
+        cambio = ultimo is None or ultimo["r"] != l.recomendacion
+        mismo_dia = ultimo is not None and ultimo["t"][:10] == hoy
+        if not cambio and mismo_dia:
+            continue                     # ya hay punto de hoy y sin cambio
         serie.append({
             "t": ahora.replace(microsecond=0).isoformat(),
             "r": l.recomendacion,
             "s": l.score,
+            "c": cambio,                 # True = inflexión (cambió de categoría)
         })
         del serie[:-MAX_PUNTOS]
         nuevos += 1

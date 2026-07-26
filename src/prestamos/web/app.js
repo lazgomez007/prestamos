@@ -823,20 +823,25 @@ async function verHistorial(symbol, intervalo) {
   } catch (err) { avisar(err.message, true); return; }
 
   const puntos = data.puntos;
-  const listaHtml = puntos.length
-    ? puntos.slice().reverse().map((p, i) => {
-        const cls = CLASE_SENAL[p.r] || "s-neutral";
-        const flecha = i < puntos.length - 1
-          ? ` <span class="sin-dato">(desde ${escapar(puntos[puntos.length - 1 - i - 1] ? puntos[puntos.length - 1 - i - 1].r : "—")})</span>` : "";
-        return `<div class="hist-item">
-          <span class="hist-fecha">${fmtFechaHora(p.t)}</span>
-          <span class="senal ${cls}">${escapar(p.etiqueta)}</span>
-          <span class="sin-dato">${p.s != null ? "aguja " + Number(p.s).toFixed(2) : ""}</span>
-        </div>`;
-      }).join("")
-    : `<p style="color:var(--texto-suave)">Aún no hay historial para esta temporalidad.
-       Se irá registrando cada vez que corras el monitor o abras la pestaña Acciones,
-       guardando <b>cada cambio de señal</b> con su fecha.</p>`;
+  const inflexiones = puntos.filter((p) => p.c);
+  let listaHtml;
+  if (!puntos.length) {
+    listaHtml = `<p style="color:var(--texto-suave)">Aún no hay historial para esta temporalidad.
+      Se irá registrando cada vez que corras el monitor o abras la pestaña Acciones.</p>`;
+  } else if (!inflexiones.length) {
+    listaHtml = `<p style="color:var(--texto-suave)">Sin inflexiones todavía: la señal se ha
+      mantenido en <b>${escapar(puntos[puntos.length - 1].etiqueta)}</b> desde
+      ${fmtFechaHora(puntos[0].t)}. Cuando cambie de categoría aparecerá aquí.</p>`;
+  } else {
+    listaHtml = inflexiones.slice().reverse().map((p) => {
+      const cls = CLASE_SENAL[p.r] || "s-neutral";
+      return `<div class="hist-item">
+        <span class="hist-fecha">${fmtFechaHora(p.t)}</span>
+        <span class="senal ${cls}">${escapar(p.etiqueta)}</span>
+        <span class="sin-dato">${p.s != null ? "aguja " + Number(p.s).toFixed(2) : ""}</span>
+      </div>`;
+    }).join("");
+  }
 
   abrirModal(`
     <div class="modal-cabecera">
@@ -845,7 +850,8 @@ async function verHistorial(symbol, intervalo) {
     </div>
     <div class="modal-cuerpo">
       <div class="hist-chart" id="hist-chart"></div>
-      <h4 style="margin:16px 0 8px">Inflexiones registradas (${puntos.length})</h4>
+      <p class="dash-hint" style="margin:8px 0 0">${puntos.length} punto(s) registrado(s) · ${inflexiones.length} inflexión(es). El historial se acumula desde que empiezas a usar el monitor.</p>
+      <h4 style="margin:16px 0 8px">Inflexiones (cambios de señal)</h4>
       <div class="hist-lista">${listaHtml}</div>
     </div>
     <div class="modal-pie">
@@ -893,15 +899,34 @@ function dibujarHistorial(puntos) {
   }
   d += ` H ${xs(tMax).toFixed(1)}`;   // extiende hasta ahora
   const dots = puntos.map((p) => {
-    const cls = { STRONG_BUY: "#1f9d57", BUY: "#1f9d57", NEUTRAL: "#888", SELL: "#c0392b", STRONG_SELL: "#c0392b" }[p.r] || "#888";
-    return `<circle cx="${xs(new Date(p.t).getTime()).toFixed(1)}" cy="${ys(nivelDe(p)).toFixed(1)}" r="4" fill="${cls}" stroke="#fff" stroke-width="1.5"><title>${fmtFechaHora(p.t)}: ${escapar(p.r)}</title></circle>`;
+    const col = { STRONG_BUY: "#1f9d57", BUY: "#1f9d57", NEUTRAL: "#888", SELL: "#c0392b", STRONG_SELL: "#c0392b" }[p.r] || "#888";
+    const r = p.c ? 5 : 2.5;            // las inflexiones se ven más grandes
+    const sw = p.c ? 2 : 1;
+    return `<circle cx="${xs(new Date(p.t).getTime()).toFixed(1)}" cy="${ys(nivelDe(p)).toFixed(1)}" r="${r}" fill="${col}" stroke="#fff" stroke-width="${sw}"><title>${fmtFechaHora(p.t)}: ${escapar(p.r)}${p.c ? " (inflexión)" : ""}</title></circle>`;
   }).join("");
+
+  // Etiquetas de fecha en el eje X (5 repartidas) + marca de "hoy".
+  const nEtq = 5;
+  let ejeX = "";
+  for (let i = 0; i < nEtq; i++) {
+    const t = tMin + (i / (nEtq - 1)) * (tMax - tMin);
+    const x = xs(t);
+    ejeX += `<line x1="${x.toFixed(1)}" y1="${padTop}" x2="${x.toFixed(1)}" y2="${H - padBot}" stroke="var(--borde)" stroke-width="0.5"/>
+      <text class="hist-eje" x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle">${fmtFechaCorta(t)}</text>`;
+  }
 
   cont.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">
     ${bandas}
+    ${ejeX}
     <path d="${d}" fill="none" stroke="var(--acento)" stroke-width="2.5" stroke-linejoin="round"/>
     ${dots}
   </svg>`;
+}
+
+function fmtFechaCorta(ms) {
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}`;
 }
 
 function fmtFechaHora(iso) {

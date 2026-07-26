@@ -422,6 +422,7 @@ table.crono td.celda-click:hover { background: var(--acento-suave); }
   border-radius: var(--radio-sm); overflow: hidden;
 }
 text.hist-zona { fill: var(--texto-suave); font-size: 9px; }
+text.hist-eje { fill: var(--texto-suave); font-size: 9px; }
 .hist-lista { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
 .hist-item {
   display: flex; align-items: center; gap: 12px;
