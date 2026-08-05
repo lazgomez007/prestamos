@@ -33,9 +33,10 @@ DIAS_ANIO = Decimal(365)
 MESES_ANIO = 12
 DIAS_MES_SIMPLE = Decimal(30)
 
-FORMULA_EFECTIVA = "A"
-FORMULA_SIMPLE = "B"
-FORMULA_MENSUAL = "C"   # mensual fija: interés = saldo * tasa_mensual (sin días)
+FORMULA_EFECTIVA = "A"   # efectiva lineal: interés = saldo * tasa_dia * días
+FORMULA_SIMPLE = "B"     # simple: interés = saldo * (tasa_mensual/30) * días
+FORMULA_MENSUAL = "C"    # mensual fija: interés = saldo * tasa_mensual (sin días)
+FORMULA_COMPUESTA = "D"  # efectiva compuesta: interés = saldo * ((1+tasa_dia)^días - 1)
 
 
 def redondear(valor: Decimal) -> Decimal:
@@ -71,6 +72,10 @@ def tasas_de_periodo(
     if formula == FORMULA_MENSUAL:
         return [tasa_mensual for _ in dias_periodos]
     diaria = tasa_por_dia(tasa_mensual, formula)
+    if formula == FORMULA_COMPUESTA:
+        # Interés compuesto por días: (1 + tasa_dia) ** días - 1.
+        uno = Decimal(1)
+        return [(uno + diaria) ** d - uno for d in dias_periodos]
     return [diaria * Decimal(d) for d in dias_periodos]
 
 

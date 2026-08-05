@@ -7,7 +7,7 @@ const estado = {
 };
 
 function nombreFormula(f) {
-  return { A: "A (efectiva)", B: "B (simple)", C: "C (mensual fija)" }[f] || "A (efectiva)";
+  return { A: "A (efectiva)", B: "B (simple)", C: "C (mensual fija)", D: "D (compuesta)" }[f] || "A (efectiva)";
 }
 
 function slugFuente(f) {
@@ -370,6 +370,7 @@ function abrirFormulario(p) {
             <option value="A"${e.formula === "A" || !e.formula ? " selected" : ""}>A — efectiva (por días)</option>
             <option value="B"${e.formula === "B" ? " selected" : ""}>B — simple (tasa/30 × días)</option>
             <option value="C"${e.formula === "C" ? " selected" : ""}>C — mensual fija (sin días)</option>
+            <option value="D"${e.formula === "D" ? " selected" : ""}>D — efectiva compuesta (por días)</option>
           </select>
         </div>
         <div class="campo"><label>Fuente / Entidad</label>

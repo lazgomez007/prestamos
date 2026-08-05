@@ -142,6 +142,25 @@ def test_formula_mensual_fija_caso_carrillo_real():
     assert abs(sum((ic for ic, _ in pares), D("0")) - D("7834.06")) <= D("0.05")
 
 
+def test_formula_compuesta_caso_nayeli():
+    # Interés compuesto por días (fórmula D): préstamo de Nayeli.
+    from prestamos.core.calculo import FORMULA_COMPUESTA
+    cuotas, cuota = generar_cronograma(
+        monto=D("5000"), tasa_mensual=D("0.0177465"), formula=FORMULA_COMPUESTA,
+        fecha_desembolso=date(2026, 7, 31), fecha_primer_vencimiento=date(2026, 9, 5),
+        num_cuotas=12,
+    )
+    assert cuota == D("467.67")
+    assert cuotas[0].dias == 36 and cuotas[0].amortizacion == D("362.48")
+    assert cuotas[0].saldo == D("4637.52")
+    assert cuotas[-1].saldo == D("0.00")
+    # La fórmula compuesta cobra más que la lineal en el primer periodo largo.
+    lineal, _ = generar_cronograma(
+        D("5000"), D("0.0177465"), FORMULA_EFECTIVA,
+        date(2026, 7, 31), date(2026, 9, 5), 12)
+    assert cuotas[0].interes > lineal[0].interes
+
+
 def test_desglose_carrillo_suma_al_interes():
     from prestamos.core.calculo import desglose_carrillo
     cuotas, _ = generar_cronograma(
