@@ -1,0 +1,10 @@
+{
+  "META:1D": "BUY",
+  "META:1h": "SELL",
+  "NVDA:1D": "BUY",
+  "NVDA:1h": "BUY",
+  "SPCX:1D": "STRONG_SELL",
+  "SPCX:1h": "STRONG_SELL",
+  "SPY:1D": "BUY",
+  "SPY:1h": "SELL"
+}

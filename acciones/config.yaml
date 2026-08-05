@@ -1,0 +1,30 @@
+# Configuración del monitor de análisis técnico (TradingView / tipo Investing.com)
+#
+# tickers    : símbolos a vigilar. Bolsas de EE.UU. (Nueva York): NASDAQ, NYSE, AMEX.
+# intervalos : 1m, 5m, 15m, 30m, 1h, 2h, 4h, 1D, 1W, 1M
+# regla      : any_change  -> avisa ante cualquier cambio de señal
+#              only_strong -> avisa solo al entrar/salir de STRONG_BUY / STRONG_SELL
+#
+# Telegram: el token y el chat_id se leen de las variables de entorno
+# TELEGRAM_TOKEN y TELEGRAM_CHAT_ID (nunca los guardes aquí).
+tickers:
+- symbol: SPY
+  exchange: AMEX
+  screener: america
+- symbol: META
+  exchange: NASDAQ
+  screener: america
+- symbol: SPCX
+  exchange: NASDAQ
+  screener: america
+- symbol: NVDA
+  exchange: NASDAQ
+  screener: america
+intervalos:
+- 30m
+- 1h
+- 4h
+- 1D
+- 1W
+- 1M
+regla: any_change

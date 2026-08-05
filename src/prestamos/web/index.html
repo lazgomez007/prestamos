@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestor de Préstamos</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="barra">
+    <div class="marca">
+      <span class="logo">S/</span>
+      <h1>Gestor de Préstamos</h1>
+    </div>
+    <div class="barra-acciones">
+      <button id="btn-dashboard" class="btn">📊 Dashboard</button>
+      <button id="btn-acciones" class="btn">📈 Acciones</button>
+      <button id="btn-nuevo" class="btn btn-primario">+ Nuevo préstamo</button>
+      <button id="btn-tema" class="btn btn-icono" title="Cambiar tema">🌙</button>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <aside class="panel-lista">
+      <div class="lista-cabecera">
+        <h2>Mis préstamos</h2>
+        <input id="buscar" class="buscar" type="search" placeholder="Buscar cliente..." />
+        <select id="filtro-fuente" class="buscar" style="margin-top:8px"></select>
+      </div>
+      <div id="lista" class="lista"></div>
+    </aside>
+
+    <section id="detalle" class="panel-detalle">
+      <div class="vacio">
+        <div class="vacio-icono">📄</div>
+        <p>Selecciona un préstamo de la lista<br>o crea uno nuevo para empezar.</p>
+      </div>
+    </section>
+  </main>
+
+  <section id="vista-dashboard" class="vista-dashboard oculto"></section>
+  <section id="vista-acciones" class="vista-dashboard oculto"></section>
+
+  <!-- Capa de modales -->
+  <div id="modal-fondo" class="modal-fondo oculto">
+    <div id="modal" class="modal" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <div id="aviso" class="aviso oculto"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
